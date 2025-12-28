@@ -11,8 +11,6 @@ import com.microservices.order.entity.CartItem;
 import com.microservices.order.exception.CartNotFoundException;
 import com.microservices.order.exception.InsufficientInventoryException;
 import com.microservices.order.exception.ProductNotFoundException;
-import com.microservices.order.exception.RetryExhaustedException;
-import com.microservices.order.exception.SystemBusyException;
 import com.microservices.order.mapper.CartMapper;
 import com.microservices.order.repository.CartItemRepository;
 import com.microservices.order.repository.CartRepository;
@@ -22,8 +20,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.retry.RetryCallback;
-import org.springframework.retry.RetryContext;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,13 +58,13 @@ public class CartServiceImpl implements CartService {
     @Override
     public CartDTO addToCart(AddToCartRequest request) {
         logger.info("添加商品到購物車: customerId={}, productId={}, quantity={}", 
-                   request.getCustomerId(), request.getProductId(), request.getQuantity());
+                   request.getUserId(), request.getProductId(), request.getQuantity());
         
         // 1. 驗證產品存在性
         ProductServiceClient.ProductDTO product = validateProduct(request.getProductId());
         
         // 2. 獲取或創建購物車
-        Cart cart = getOrCreateCart(request.getCustomerId());
+        Cart cart = getOrCreateCart(request.getUserId());
         
         // 3. 檢查購物車中是否已有該商品
         Optional<CartItem> existingItem = cartItemRepository
@@ -80,14 +76,14 @@ public class CartServiceImpl implements CartService {
             int newQuantity = item.getQuantity() + request.getQuantity();
             
             // 調整庫存預留
-            adjustInventoryReservation(request.getProductId(), request.getCustomerId(), 
+            adjustInventoryReservation(request.getProductId(), request.getUserId(), 
                                      item.getQuantity(), newQuantity);
             
             item.setQuantity(newQuantity);
             cartItemRepository.save(item);
         } else {
             // 預留庫存
-            reserveInventory(request.getProductId(), request.getCustomerId(), request.getQuantity());
+            reserveInventory(request.getProductId(), request.getUserId(), request.getQuantity());
             
             // 創建新的購物車項目
             CartItem newItem = new CartItem(request.getProductId(), request.getQuantity(), product.getPrice());
@@ -98,14 +94,14 @@ public class CartServiceImpl implements CartService {
         cartRepository.save(cart);
         
         // 4. 返回更新後的購物車
-        Cart updatedCart = cartRepository.findByCustomerIdWithItems(request.getCustomerId())
+        Cart updatedCart = cartRepository.findByUserIdWithItems(request.getUserId())
             .orElseThrow(() -> new CartNotFoundException("購物車未找到"));
         
         CartDTO cartDTO = cartMapper.toDTO(updatedCart);
         enrichCartWithProductInfo(cartDTO);
         
         logger.info("成功添加商品到購物車: customerId={}, productId={}", 
-                   request.getCustomerId(), request.getProductId());
+                   request.getUserId(), request.getProductId());
         
         return cartDTO;
     }
@@ -113,19 +109,19 @@ public class CartServiceImpl implements CartService {
     @Override
     public CartDTO updateCartItem(Long itemId, UpdateCartItemRequest request) {
         logger.info("更新購物車項目: itemId={}, customerId={}, quantity={}", 
-                   itemId, request.getCustomerId(), request.getQuantity());
+                   itemId, request.getUserId(), request.getQuantity());
         
         // 1. 查找購物車項目
         CartItem item = cartItemRepository.findById(itemId)
             .orElseThrow(() -> new CartNotFoundException("購物車項目未找到"));
         
         // 2. 驗證客戶權限
-        if (!item.getCart().getCustomerId().equals(request.getCustomerId())) {
+        if (!item.getCart().getUserId().equals(request.getUserId())) {
             throw new CartNotFoundException("無權限操作此購物車項目");
         }
         
         // 3. 調整庫存預留
-        adjustInventoryReservation(item.getProductId(), request.getCustomerId(), 
+        adjustInventoryReservation(item.getProductId(), request.getUserId(), 
                                  item.getQuantity(), request.getQuantity());
         
         // 4. 更新項目數量
@@ -133,7 +129,7 @@ public class CartServiceImpl implements CartService {
         cartItemRepository.save(item);
         
         // 5. 返回更新後的購物車
-        Cart cart = cartRepository.findByCustomerIdWithItems(request.getCustomerId())
+        Cart cart = cartRepository.findByUserIdWithItems(request.getUserId())
             .orElseThrow(() -> new CartNotFoundException("購物車未找到"));
         
         CartDTO cartDTO = cartMapper.toDTO(cart);
@@ -145,26 +141,26 @@ public class CartServiceImpl implements CartService {
     }
     
     @Override
-    public CartDTO removeFromCart(Long itemId, String customerId) {
-        logger.info("從購物車移除商品: itemId={}, customerId={}", itemId, customerId);
+    public CartDTO removeFromCart(Long itemId, Long userId) {
+        logger.info("從購物車移除商品: itemId={}, userId={}", itemId, userId);
         
         // 1. 查找購物車項目
         CartItem item = cartItemRepository.findById(itemId)
             .orElseThrow(() -> new CartNotFoundException("購物車項目未找到"));
         
         // 2. 驗證客戶權限
-        if (!item.getCart().getCustomerId().equals(customerId)) {
+        if (!item.getCart().getUserId().equals(userId)) {
             throw new CartNotFoundException("無權限操作此購物車項目");
         }
         
         // 3. 釋放庫存預留
-        releaseInventory(item.getProductId(), customerId, item.getQuantity());
+        releaseInventory(item.getProductId(), userId, item.getQuantity());
         
         // 4. 移除項目
         cartItemRepository.delete(item);
         
         // 5. 返回更新後的購物車
-        Cart cart = cartRepository.findByCustomerIdWithItems(customerId)
+        Cart cart = cartRepository.findByUserIdWithItems(userId)
             .orElseThrow(() -> new CartNotFoundException("購物車未找到"));
         
         CartDTO cartDTO = cartMapper.toDTO(cart);
@@ -177,11 +173,11 @@ public class CartServiceImpl implements CartService {
     
     @Override
     @Transactional(readOnly = true)
-    public CartDTO getCart(String customerId) {
-        logger.info("獲取購物車: customerId={}", customerId);
+    public CartDTO getCart(Long userId) {
+        logger.info("獲取購物車: userId={}", userId);
         
-        Cart cart = cartRepository.findByCustomerIdWithItems(customerId)
-            .orElse(new Cart(customerId)); // 如果不存在則返回空購物車
+        Cart cart = cartRepository.findByUserIdWithItems(userId)
+            .orElse(new Cart(userId)); // 如果不存在則返回空購物車
         
         CartDTO cartDTO = cartMapper.toDTO(cart);
         enrichCartWithProductInfo(cartDTO);
@@ -190,29 +186,29 @@ public class CartServiceImpl implements CartService {
     }
     
     @Override
-    public void clearCart(String customerId) {
-        logger.info("清空購物車: customerId={}", customerId);
+    public void clearCart(Long userId) {
+        logger.info("清空購物車: userId={}", userId);
         
-        Optional<Cart> cartOpt = cartRepository.findByCustomerIdWithItems(customerId);
+        Optional<Cart> cartOpt = cartRepository.findByUserIdWithItems(userId);
         if (cartOpt.isPresent()) {
             Cart cart = cartOpt.get();
             
             // 釋放所有庫存預留
             for (CartItem item : cart.getItems()) {
-                releaseInventory(item.getProductId(), customerId, item.getQuantity());
+                releaseInventory(item.getProductId(), userId, item.getQuantity());
             }
             
             // 刪除購物車
             cartRepository.delete(cart);
             
-            logger.info("成功清空購物車: customerId={}", customerId);
+            logger.info("成功清空購物車: userId={}", userId);
         }
     }
     
     @Override
     @Transactional(readOnly = true)
-    public boolean cartExists(String customerId) {
-        return cartRepository.existsByCustomerId(customerId);
+    public boolean cartExists(Long userId) {
+        return cartRepository.existsByUserId(userId);
     }
     
     /**
@@ -246,10 +242,10 @@ public class CartServiceImpl implements CartService {
     /**
      * 獲取或創建購物車
      */
-    private Cart getOrCreateCart(String customerId) {
-        return cartRepository.findByCustomerId(customerId)
+    private Cart getOrCreateCart(Long userId) {
+        return cartRepository.findByUserId(userId)
             .orElseGet(() -> {
-                Cart newCart = new Cart(customerId);
+                Cart newCart = new Cart(userId);
                 return cartRepository.save(newCart);
             });
     }
@@ -257,11 +253,11 @@ public class CartServiceImpl implements CartService {
     /**
      * 預留庫存
      */
-    private void reserveInventory(Long productId, String customerId, Integer quantity) {
+    private void reserveInventory(Long productId, Long userId, Integer quantity) {
         try {
             serviceCallRetryTemplate.execute(context -> {
                 InventoryServiceClient.ReserveInventoryRequest request = 
-                    new InventoryServiceClient.ReserveInventoryRequest(customerId, quantity, "TEMPORARY");
+                    new InventoryServiceClient.ReserveInventoryRequest(userId, quantity, "TEMPORARY");
                 inventoryServiceClient.reserveInventory(productId, request);
                 return null;
             });
@@ -276,16 +272,16 @@ public class CartServiceImpl implements CartService {
     /**
      * 調整庫存預留
      */
-    private void adjustInventoryReservation(Long productId, String customerId, 
+    private void adjustInventoryReservation(Long productId, Long userId, 
                                           Integer oldQuantity, Integer newQuantity) {
         int difference = newQuantity - oldQuantity;
         
         if (difference > 0) {
             // 需要增加預留
-            reserveInventory(productId, customerId, difference);
+            reserveInventory(productId, userId, difference);
         } else if (difference < 0) {
             // 需要減少預留
-            releaseInventory(productId, customerId, Math.abs(difference));
+            releaseInventory(productId, userId, Math.abs(difference));
         }
         // difference == 0 時不需要調整
     }
@@ -293,14 +289,14 @@ public class CartServiceImpl implements CartService {
     /**
      * 釋放庫存預留
      */
-    private void releaseInventory(Long productId, String customerId, Integer quantity) {
+    private void releaseInventory(Long productId, Long userId, Integer quantity) {
         try {
             InventoryServiceClient.ReleaseInventoryRequest request = 
-                new InventoryServiceClient.ReleaseInventoryRequest(customerId, quantity, "TEMPORARY");
+                new InventoryServiceClient.ReleaseInventoryRequest(userId, quantity, "TEMPORARY");
             inventoryServiceClient.releaseInventory(productId, request);
         } catch (FeignException e) {
-            logger.error("釋放庫存失敗: productId={}, customerId={}, quantity={}", 
-                        productId, customerId, quantity, e);
+            logger.error("釋放庫存失敗: productId={}, userId={}, quantity={}", 
+                        productId, userId, quantity, e);
             // 釋放庫存失敗不應該阻止購物車操作，只記錄錯誤
         }
     }

@@ -2,11 +2,11 @@ spring:
   application:
     name: order-service
   config:
-    import: "optional:configserver:http://localhost:8888"
+    import: "optional:configserver:http://config-server:8888"
   cloud:
     config:
       enabled: true
-      uri: http://localhost:8888
+      uri: http://config-server:8888
       fail-fast: false
       retry:
         initial-interval: 1000
@@ -16,7 +16,7 @@ spring:
   
   # 資料庫配置
   datasource:
-    url: jdbc:postgresql://localhost:5432/order_db
+    url: jdbc:postgresql://postgres:5432/order_db
     username: ${DB_USERNAME:order_user}
     password: ${DB_PASSWORD:order_pass}
     driver-class-name: org.postgresql.Driver
@@ -53,7 +53,7 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://eureka-server:8761/eureka/
     fetch-registry: true
     register-with-eureka: true
   instance:

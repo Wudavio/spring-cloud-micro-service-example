@@ -10,8 +10,8 @@ import jakarta.validation.constraints.NotNull;
  */
 public class ConfirmReservationRequest {
     
-    @NotBlank(message = "客戶ID不能為空")
-    private String customerId;
+    @NotNull(message = "用戶ID不能為空")
+    private Long userId;
     
     @NotNull(message = "確認數量不能為空")
     @Min(value = 1, message = "確認數量必須大於0")
@@ -21,18 +21,18 @@ public class ConfirmReservationRequest {
     public ConfirmReservationRequest() {}
     
     // 建構子
-    public ConfirmReservationRequest(String customerId, Integer quantity) {
-        this.customerId = customerId;
+    public ConfirmReservationRequest(Long userId, Integer quantity) {
+        this.userId = userId;
         this.quantity = quantity;
     }
     
     // Getters and Setters
-    public String getCustomerId() {
-        return customerId;
+    public Long getUserId() {
+        return userId;
     }
     
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
     
     public Integer getQuantity() {

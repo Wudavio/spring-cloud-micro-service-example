@@ -40,7 +40,7 @@ public class InventoryMapper {
         return new ReservationDTO(
             reservation.getId(),
             reservation.getProductId(),
-            reservation.getCustomerId(),
+            reservation.getUserId(),
             reservation.getQuantity(),
             reservation.getType(),
             reservation.getExpiresAt(),

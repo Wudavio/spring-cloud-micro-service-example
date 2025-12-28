@@ -34,7 +34,7 @@ public class CartMapper {
         
         return new CartDTO(
             cart.getId(),
-            cart.getCustomerId(),
+            cart.getUserId(),
             itemDTOs,
             totalAmount,
             cart.getUpdatedAt()
@@ -68,7 +68,7 @@ public class CartMapper {
             return null;
         }
         
-        Cart cart = new Cart(dto.getCustomerId());
+        Cart cart = new Cart(dto.getUserId());
         cart.setId(dto.getId());
         cart.setUpdatedAt(dto.getUpdatedAt());
         

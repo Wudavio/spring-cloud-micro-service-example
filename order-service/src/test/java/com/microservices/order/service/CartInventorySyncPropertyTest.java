@@ -100,7 +100,7 @@ class CartInventorySyncPropertyTest {
             
             // 驗證庫存預留數量與購物車數量一致
             assertThat(reserveRequest.getQuantity()).isEqualTo(quantity);
-            assertThat(reserveRequest.getCustomerId()).isEqualTo(customerId);
+            assertThat(reserveRequest.getUserId()).isEqualTo(customerId);
             assertThat(reserveRequest.getType()).isEqualTo("TEMPORARY");
             
             // 驗證購物車中的數量
@@ -143,7 +143,7 @@ class CartInventorySyncPropertyTest {
         doNothing().when(inventoryServiceClient).releaseInventory(anyLong(), any());
         
         // 獲取購物車項目ID
-        Cart cart = cartRepository.findByCustomerIdWithItems(customerId).orElseThrow();
+        Cart cart = cartRepository.findByUserIdWithItems(customerId).orElseThrow();
         CartItem item = cart.getItems().get(0);
         
         // 創建更新請求
@@ -162,7 +162,7 @@ class CartInventorySyncPropertyTest {
             
             InventoryServiceClient.ReserveInventoryRequest reserveRequest = reserveCaptor.getValue();
             assertThat(reserveRequest.getQuantity()).isEqualTo(difference);
-            assertThat(reserveRequest.getCustomerId()).isEqualTo(customerId);
+            assertThat(reserveRequest.getUserId()).isEqualTo(customerId);
             assertThat(reserveRequest.getType()).isEqualTo("TEMPORARY");
         } else if (difference < 0) {
             // 需要減少預留
@@ -172,7 +172,7 @@ class CartInventorySyncPropertyTest {
             
             InventoryServiceClient.ReleaseInventoryRequest releaseRequest = releaseCaptor.getValue();
             assertThat(releaseRequest.getQuantity()).isEqualTo(Math.abs(difference));
-            assertThat(releaseRequest.getCustomerId()).isEqualTo(customerId);
+            assertThat(releaseRequest.getUserId()).isEqualTo(customerId);
             assertThat(releaseRequest.getType()).isEqualTo("TEMPORARY");
         }
         // difference == 0 時不需要調整庫存
@@ -212,7 +212,7 @@ class CartInventorySyncPropertyTest {
         doNothing().when(inventoryServiceClient).releaseInventory(anyLong(), any());
         
         // 獲取購物車項目ID
-        Cart cart = cartRepository.findByCustomerIdWithItems(customerId).orElseThrow();
+        Cart cart = cartRepository.findByUserIdWithItems(customerId).orElseThrow();
         CartItem item = cart.getItems().get(0);
         
         // 執行移除操作
@@ -225,7 +225,7 @@ class CartInventorySyncPropertyTest {
         
         InventoryServiceClient.ReleaseInventoryRequest releaseRequest = captor.getValue();
         assertThat(releaseRequest.getQuantity()).isEqualTo(quantity);
-        assertThat(releaseRequest.getCustomerId()).isEqualTo(customerId);
+        assertThat(releaseRequest.getUserId()).isEqualTo(customerId);
         assertThat(releaseRequest.getType()).isEqualTo("TEMPORARY");
         
         // 驗證購物車為空
@@ -270,7 +270,7 @@ class CartInventorySyncPropertyTest {
         verify(inventoryServiceClient, times(itemCount)).releaseInventory(anyLong(), any());
         
         // 驗證購物車已被刪除
-        assertThat(cartRepository.findByCustomerId(customerId)).isEmpty();
+        assertThat(cartRepository.findByUserId(customerId)).isEmpty();
         
         // 清理數據和 Mock
         cartItemRepository.deleteAll();
@@ -292,7 +292,7 @@ class CartInventorySyncPropertyTest {
         when(inventoryServiceClient.reserveInventory(anyLong(), any())).thenReturn(mockReservation);
         
         // 獲取或創建購物車
-        Cart cart = cartRepository.findByCustomerId(customerId)
+        Cart cart = cartRepository.findByUserId(customerId)
             .orElseGet(() -> cartRepository.save(new Cart(customerId)));
         
         // 檢查是否已有該商品 - 使用資料庫查詢而不是集合訪問
@@ -327,7 +327,7 @@ class CartInventorySyncPropertyTest {
         InventoryServiceClient.ReservationDTO reservation = new InventoryServiceClient.ReservationDTO();
         reservation.setId(1L);
         reservation.setProductId(productId);
-        reservation.setCustomerId(customerId);
+        reservation.setUserId(customerId);
         reservation.setQuantity(quantity);
         reservation.setType("TEMPORARY");
         reservation.setExpiresAt(java.time.LocalDateTime.now().plusMinutes(30));

@@ -14,8 +14,8 @@ public class CartDTO {
     @Schema(description = "購物車ID", example = "1")
     private Long id;
     
-    @Schema(description = "客戶ID", example = "customer123")
-    private String customerId;
+    @Schema(description = "用戶ID", example = "123")
+    private Long userId;
     
     @Schema(description = "購物車項目列表")
     private List<CartItemDTO> items;
@@ -30,9 +30,9 @@ public class CartDTO {
     public CartDTO() {}
     
     // 建構子
-    public CartDTO(Long id, String customerId, List<CartItemDTO> items, BigDecimal totalAmount, LocalDateTime updatedAt) {
+    public CartDTO(Long id, Long userId, List<CartItemDTO> items, BigDecimal totalAmount, LocalDateTime updatedAt) {
         this.id = id;
-        this.customerId = customerId;
+        this.userId = userId;
         this.items = items;
         this.totalAmount = totalAmount;
         this.updatedAt = updatedAt;
@@ -47,12 +47,12 @@ public class CartDTO {
         this.id = id;
     }
     
-    public String getCustomerId() {
-        return customerId;
+    public Long getUserId() {
+        return userId;
     }
     
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
     
     public List<CartItemDTO> getItems() {

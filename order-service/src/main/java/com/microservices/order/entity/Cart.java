@@ -20,7 +20,7 @@ public class Cart {
     private Long id;
     
     @Column(nullable = false, unique = true)
-    private String customerId;
+    private Long userId;
     
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<CartItem> items = new ArrayList<>();
@@ -32,8 +32,8 @@ public class Cart {
     public Cart() {}
     
     // 建構子
-    public Cart(String customerId) {
-        this.customerId = customerId;
+    public Cart(Long userId) {
+        this.userId = userId;
     }
     
     // Getters and Setters
@@ -45,12 +45,12 @@ public class Cart {
         this.id = id;
     }
     
-    public String getCustomerId() {
-        return customerId;
+    public Long getUserId() {
+        return userId;
     }
     
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
     
     public List<CartItem> getItems() {

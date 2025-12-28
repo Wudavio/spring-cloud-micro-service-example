@@ -2,7 +2,7 @@ package com.microservices.order.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotNull;
 
 /**
@@ -11,11 +11,11 @@ import jakarta.validation.constraints.NotNull;
 @Schema(description = "更新購物車項目的請求物件")
 public class UpdateCartItemRequest {
     
-    @Schema(description = "客戶ID", example = "customer123", required = true)
-    @NotBlank(message = "客戶ID不能為空")
-    private String customerId;
+    @Schema(description = "用戶ID", example = "123")
+    @NotNull(message = "用戶ID不能為空")
+    private Long userId;
     
-    @Schema(description = "新的購買數量", example = "3", minimum = "1", required = true)
+    @Schema(description = "新的購買數量", example = "3", minimum = "1")
     @NotNull(message = "數量不能為空")
     @Min(value = 1, message = "數量必須大於0")
     private Integer quantity;
@@ -24,18 +24,18 @@ public class UpdateCartItemRequest {
     public UpdateCartItemRequest() {}
     
     // 建構子
-    public UpdateCartItemRequest(String customerId, Integer quantity) {
-        this.customerId = customerId;
+    public UpdateCartItemRequest(Long userId, Integer quantity) {
+        this.userId = userId;
         this.quantity = quantity;
     }
     
     // Getters and Setters
-    public String getCustomerId() {
-        return customerId;
+    public Long getUserId() {
+        return userId;
     }
     
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
     
     public Integer getQuantity() {

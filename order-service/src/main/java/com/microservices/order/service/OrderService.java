@@ -28,9 +28,9 @@ public interface OrderService {
     OrderDTO getOrderByNumber(String orderNumber);
     
     /**
-     * 獲取客戶訂單列表
+     * 獲取用戶訂單列表
      */
-    Page<OrderDTO> getCustomerOrders(String customerId, Pageable pageable);
+    Page<OrderDTO> getUserOrders(Long userId, Pageable pageable);
     
     /**
      * 取消訂單

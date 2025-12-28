@@ -10,8 +10,8 @@ import jakarta.validation.constraints.NotNull;
  */
 public class ReleaseInventoryRequest {
     
-    @NotBlank(message = "客戶ID不能為空")
-    private String customerId;
+    @NotNull(message = "用戶ID不能為空")
+    private Long userId;
     
     @NotNull(message = "釋放數量不能為空")
     @Min(value = 1, message = "釋放數量必須大於0")
@@ -23,19 +23,19 @@ public class ReleaseInventoryRequest {
     public ReleaseInventoryRequest() {}
     
     // 建構子
-    public ReleaseInventoryRequest(String customerId, Integer quantity, String releaseType) {
-        this.customerId = customerId;
+    public ReleaseInventoryRequest(Long userId, Integer quantity, String releaseType) {
+        this.userId = userId;
         this.quantity = quantity;
         this.releaseType = releaseType;
     }
     
     // Getters and Setters
-    public String getCustomerId() {
-        return customerId;
+    public Long getUserId() {
+        return userId;
     }
     
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
     
     public Integer getQuantity() {

@@ -138,8 +138,8 @@ public class InventoryController {
             @Parameter(description = "產品 ID") @PathVariable Long productId,
             @Parameter(description = "預留請求") @Valid @RequestBody ReserveInventoryRequest request) {
         
-        logger.info("臨時預留庫存: productId={}, customerId={}, quantity={}", 
-                   productId, request.getCustomerId(), request.getQuantity());
+        logger.info("臨時預留庫存: productId={}, userId={}, quantity={}", 
+                   productId, request.getUserId(), request.getQuantity());
         
         try {
             // 如果沒有指定過期時間，預設為30分鐘後過期
@@ -150,14 +150,14 @@ public class InventoryController {
             
             InventoryReservation reservation = inventoryService.reserveTemporary(
                 productId, 
-                request.getCustomerId(), 
+                request.getUserId(), 
                 request.getQuantity(), 
                 expiresAt
             );
             
             ReservationDTO reservationDTO = InventoryMapper.toDTO(reservation);
-            logger.info("臨時預留成功: productId={}, customerId={}, reservationId={}", 
-                       productId, request.getCustomerId(), reservation.getId());
+            logger.info("臨時預留成功: productId={}, userId={}, reservationId={}", 
+                       productId, request.getUserId(), reservation.getId());
             
             return ResponseEntity.status(HttpStatus.CREATED).body(reservationDTO);
             
@@ -189,28 +189,28 @@ public class InventoryController {
             @Parameter(description = "產品 ID") @PathVariable Long productId,
             @Parameter(description = "釋放請求") @Valid @RequestBody ReleaseInventoryRequest request) {
         
-        logger.info("釋放預留庫存: productId={}, customerId={}, quantity={}, type={}", 
-                   productId, request.getCustomerId(), request.getQuantity(), request.getReleaseType());
+        logger.info("釋放預留庫存: productId={}, userId={}, quantity={}, type={}", 
+                   productId, request.getUserId(), request.getQuantity(), request.getReleaseType());
         
         try {
             if ("CONFIRMED".equalsIgnoreCase(request.getReleaseType())) {
                 // 釋放正式預留（訂單取消）
                 inventoryService.releaseConfirmedReservation(
                     productId, 
-                    request.getCustomerId(), 
+                    request.getUserId(), 
                     request.getQuantity()
                 );
             } else {
                 // 釋放臨時預留（購物車移除，預設行為）
                 inventoryService.releaseTemporaryReservation(
                     productId, 
-                    request.getCustomerId(), 
+                    request.getUserId(), 
                     request.getQuantity()
                 );
             }
             
-            logger.info("預留釋放成功: productId={}, customerId={}, type={}", 
-                       productId, request.getCustomerId(), request.getReleaseType());
+            logger.info("預留釋放成功: productId={}, userId={}, type={}", 
+                       productId, request.getUserId(), request.getReleaseType());
             
             return ResponseEntity.ok().build();
             
@@ -241,19 +241,19 @@ public class InventoryController {
             @Parameter(description = "產品 ID") @PathVariable Long productId,
             @Parameter(description = "確認請求") @Valid @RequestBody ConfirmReservationRequest request) {
         
-        logger.info("確認預留: productId={}, customerId={}, quantity={}", 
-                   productId, request.getCustomerId(), request.getQuantity());
+        logger.info("確認預留: productId={}, userId={}, quantity={}", 
+                   productId, request.getUserId(), request.getQuantity());
         
         try {
             InventoryReservation confirmedReservation = inventoryService.confirmReservation(
                 productId, 
-                request.getCustomerId(), 
+                request.getUserId(), 
                 request.getQuantity()
             );
             
             ReservationDTO reservationDTO = InventoryMapper.toDTO(confirmedReservation);
-            logger.info("預留確認成功: productId={}, customerId={}, reservationId={}", 
-                       productId, request.getCustomerId(), confirmedReservation.getId());
+            logger.info("預留確認成功: productId={}, userId={}, reservationId={}", 
+                       productId, request.getUserId(), confirmedReservation.getId());
             
             return ResponseEntity.ok(reservationDTO);
             
@@ -319,7 +319,7 @@ public class InventoryController {
         
         logger.info("查詢客戶預留記錄: customerId={}", customerId);
         
-        List<InventoryReservation> reservations = inventoryService.findReservationsByCustomer(customerId);
+        List<InventoryReservation> reservations = inventoryService.findReservationsByUser(Long.valueOf(customerId));
         List<ReservationDTO> reservationDTOs = reservations.stream()
             .map(InventoryMapper::toDTO)
             .collect(Collectors.toList());

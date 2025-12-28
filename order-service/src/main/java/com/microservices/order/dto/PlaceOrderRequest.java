@@ -1,7 +1,7 @@
 package com.microservices.order.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 /**
  * 下單請求
@@ -9,24 +9,23 @@ import jakarta.validation.constraints.NotBlank;
 @Schema(description = "下單請求物件")
 public class PlaceOrderRequest {
     
-    @Schema(description = "客戶ID", example = "customer123", required = true)
-    @NotBlank(message = "客戶ID不能為空")
-    private String customerId;
+    // 用戶ID將從 JWT token 中獲取，不需要在請求中提供
+    private Long userId;
     
     // 預設建構子
     public PlaceOrderRequest() {}
     
     // 建構子
-    public PlaceOrderRequest(String customerId) {
-        this.customerId = customerId;
+    public PlaceOrderRequest(Long userId) {
+        this.userId = userId;
     }
     
     // Getters and Setters
-    public String getCustomerId() {
-        return customerId;
+    public Long getUserId() {
+        return userId;
     }
     
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 }

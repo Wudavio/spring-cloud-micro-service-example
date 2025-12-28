@@ -34,25 +34,25 @@ public interface InventoryServiceClient {
      * 預留庫存請求
      */
     class ReserveInventoryRequest {
-        private String customerId;
+        private Long userId;
         private Integer quantity;
         private String type; // TEMPORARY 或 CONFIRMED
         
         public ReserveInventoryRequest() {}
         
-        public ReserveInventoryRequest(String customerId, Integer quantity, String type) {
-            this.customerId = customerId;
+        public ReserveInventoryRequest(Long userId, Integer quantity, String type) {
+            this.userId = userId;
             this.quantity = quantity;
             this.type = type;
         }
         
         // Getters and Setters
-        public String getCustomerId() {
-            return customerId;
+        public Long getUserId() {
+            return userId;
         }
         
-        public void setCustomerId(String customerId) {
-            this.customerId = customerId;
+        public void setUserId(Long userId) {
+            this.userId = userId;
         }
         
         public Integer getQuantity() {
@@ -76,25 +76,25 @@ public interface InventoryServiceClient {
      * 釋放庫存請求
      */
     class ReleaseInventoryRequest {
-        private String customerId;
+        private Long userId;
         private Integer quantity;
         private String type;
         
         public ReleaseInventoryRequest() {}
         
-        public ReleaseInventoryRequest(String customerId, Integer quantity, String type) {
-            this.customerId = customerId;
+        public ReleaseInventoryRequest(Long userId, Integer quantity, String type) {
+            this.userId = userId;
             this.quantity = quantity;
             this.type = type;
         }
         
         // Getters and Setters
-        public String getCustomerId() {
-            return customerId;
+        public Long getUserId() {
+            return userId;
         }
         
-        public void setCustomerId(String customerId) {
-            this.customerId = customerId;
+        public void setUserId(Long userId) {
+            this.userId = userId;
         }
         
         public Integer getQuantity() {
@@ -118,23 +118,23 @@ public interface InventoryServiceClient {
      * 確認預留請求
      */
     class ConfirmReservationRequest {
-        private String customerId;
+        private Long userId;
         private Integer quantity;
         
         public ConfirmReservationRequest() {}
         
-        public ConfirmReservationRequest(String customerId, Integer quantity) {
-            this.customerId = customerId;
+        public ConfirmReservationRequest(Long userId, Integer quantity) {
+            this.userId = userId;
             this.quantity = quantity;
         }
         
         // Getters and Setters
-        public String getCustomerId() {
-            return customerId;
+        public Long getUserId() {
+            return userId;
         }
         
-        public void setCustomerId(String customerId) {
-            this.customerId = customerId;
+        public void setUserId(Long userId) {
+            this.userId = userId;
         }
         
         public Integer getQuantity() {
@@ -176,11 +176,11 @@ public interface InventoryServiceClient {
             this.productId = productId;
         }
         
-        public String getCustomerId() {
+        public String getUserId() {
             return customerId;
         }
         
-        public void setCustomerId(String customerId) {
+        public void setUserId(String customerId) {
             this.customerId = customerId;
         }
         

@@ -25,8 +25,8 @@ public class InventoryReservation {
     private Long productId;
     
     @Column(nullable = false, length = 100)
-    @NotBlank(message = "客戶ID不能為空")
-    private String customerId;
+    @NotNull(message = "用戶ID不能為空")
+    private Long userId;
     
     @Column(nullable = false)
     @NotNull(message = "預留數量不能為空")
@@ -49,10 +49,10 @@ public class InventoryReservation {
     public InventoryReservation() {}
     
     // 建構子
-    public InventoryReservation(Long productId, String customerId, Integer quantity, 
+    public InventoryReservation(Long productId, Long userId, Integer quantity, 
                                ReservationType type, LocalDateTime expiresAt) {
         this.productId = productId;
-        this.customerId = customerId;
+        this.userId = userId;
         this.quantity = quantity;
         this.type = type;
         this.expiresAt = expiresAt;
@@ -75,12 +75,12 @@ public class InventoryReservation {
         this.productId = productId;
     }
     
-    public String getCustomerId() {
-        return customerId;
+    public Long getUserId() {
+        return userId;
     }
     
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
     
     public Integer getQuantity() {
@@ -141,7 +141,7 @@ public class InventoryReservation {
         return "InventoryReservation{" +
                 "id=" + id +
                 ", productId=" + productId +
-                ", customerId='" + customerId + '\'' +
+                ", userId=" + userId + '\'' +
                 ", quantity=" + quantity +
                 ", type=" + type +
                 ", expiresAt=" + expiresAt +

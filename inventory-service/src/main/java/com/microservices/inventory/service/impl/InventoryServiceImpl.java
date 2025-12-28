@@ -118,15 +118,15 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @Retryable(value = {OptimisticLockingFailureException.class}, maxAttempts = MAX_RETRY_ATTEMPTS, backoff = @Backoff(delay = 1000, multiplier = 2))
-    public InventoryReservation reserveTemporary(Long productId, String customerId, Integer quantity, LocalDateTime expiresAt)
+    public InventoryReservation reserveTemporary(Long productId, Long userId, Integer quantity, LocalDateTime expiresAt)
             throws InsufficientStockException, ConcurrentModificationException {
         
-        logger.info("開始臨時預留庫存: productId={}, customerId={}, quantity={}", productId, customerId, quantity);
+        logger.info("開始臨時預留庫存: productId={}, userId={}, quantity={}", productId, userId, quantity);
         
         try {
             return lockManager.executeWithProductLock(productId, () -> {
                 try {
-                    return performTemporaryReservation(productId, customerId, quantity, expiresAt);
+                    return performTemporaryReservation(productId, userId, quantity, expiresAt);
                 } catch (InsufficientStockException e) {
                     throw new RuntimeException(e);
                 }
@@ -142,7 +142,7 @@ public class InventoryServiceImpl implements InventoryService {
         }
     }
 
-    private InventoryReservation performTemporaryReservation(Long productId, String customerId, Integer quantity, LocalDateTime expiresAt)
+    private InventoryReservation performTemporaryReservation(Long productId, Long userId, Integer quantity, LocalDateTime expiresAt)
             throws InsufficientStockException {
         
         // 使用樂觀鎖查詢庫存
@@ -158,7 +158,7 @@ public class InventoryServiceImpl implements InventoryService {
 
         // 檢查是否已存在該客戶的臨時預留
         List<InventoryReservation> existingReservations = reservationRepository
-                .findByProductIdAndCustomerIdAndType(productId, customerId, ReservationType.TEMPORARY);
+                .findByProductIdAndUserIdAndType(productId, userId, ReservationType.TEMPORARY);
         
         if (!existingReservations.isEmpty()) {
             // 如果已存在，先釋放舊的預留
@@ -175,26 +175,26 @@ public class InventoryServiceImpl implements InventoryService {
         inventoryRepository.save(inventory);
 
         // 創建預留記錄
-        InventoryReservation reservation = new InventoryReservation(productId, customerId, quantity, ReservationType.TEMPORARY, expiresAt);
+        InventoryReservation reservation = new InventoryReservation(productId, userId, quantity, ReservationType.TEMPORARY, expiresAt);
         reservation = reservationRepository.save(reservation);
 
-        logger.info("臨時預留成功: productId={}, customerId={}, quantity={}, reservationId={}", 
-                   productId, customerId, quantity, reservation.getId());
+        logger.info("臨時預留成功: productId={}, userId={}, quantity={}, reservationId={}", 
+                   productId, userId, quantity, reservation.getId());
         
         return reservation;
     }
 
     @Override
     @Retryable(value = {OptimisticLockingFailureException.class}, maxAttempts = MAX_RETRY_ATTEMPTS, backoff = @Backoff(delay = 1000, multiplier = 2))
-    public InventoryReservation confirmReservation(Long productId, String customerId, Integer quantity)
+    public InventoryReservation confirmReservation(Long productId, Long userId, Integer quantity)
             throws ReservationNotFoundException, ConcurrentModificationException {
         
-        logger.info("開始確認預留: productId={}, customerId={}, quantity={}", productId, customerId, quantity);
+        logger.info("開始確認預留: productId={}, userId={}, quantity={}", productId, userId, quantity);
         
         try {
             return lockManager.executeWithProductLock(productId, () -> {
                 try {
-                    return performConfirmReservation(productId, customerId, quantity);
+                    return performConfirmReservation(productId, userId, quantity);
                 } catch (ReservationNotFoundException e) {
                     throw new RuntimeException(e);
                 }
@@ -210,7 +210,7 @@ public class InventoryServiceImpl implements InventoryService {
         }
     }
 
-    private InventoryReservation performConfirmReservation(Long productId, String customerId, Integer quantity)
+    private InventoryReservation performConfirmReservation(Long productId, Long userId, Integer quantity)
             throws ReservationNotFoundException {
         
         // 使用樂觀鎖查詢庫存
@@ -219,11 +219,11 @@ public class InventoryServiceImpl implements InventoryService {
 
         // 查找臨時預留記錄
         List<InventoryReservation> temporaryReservations = reservationRepository
-                .findByProductIdAndCustomerIdAndType(productId, customerId, ReservationType.TEMPORARY);
+                .findByProductIdAndUserIdAndType(productId, userId, ReservationType.TEMPORARY);
         
         if (temporaryReservations.isEmpty()) {
             throw new ReservationNotFoundException(
-                String.format("找不到臨時預留記錄。產品ID: %d, 客戶ID: %s", productId, customerId));
+                String.format("找不到臨時預留記錄。產品ID: %d, 客戶ID: %s", productId, userId));
         }
 
         // 計算總的臨時預留數量
@@ -234,7 +234,7 @@ public class InventoryServiceImpl implements InventoryService {
         if (totalTemporaryQuantity < quantity) {
             throw new ReservationNotFoundException(
                 String.format("臨時預留數量不足。產品ID: %d, 客戶ID: %s, 需要: %d, 可用: %d", 
-                    productId, customerId, quantity, totalTemporaryQuantity));
+                    productId, userId, quantity, totalTemporaryQuantity));
         }
 
         // 刪除臨時預留記錄
@@ -257,25 +257,25 @@ public class InventoryServiceImpl implements InventoryService {
         // 創建確認預留記錄（永不過期，直到訂單完成或取消）
         LocalDateTime neverExpires = LocalDateTime.now().plusYears(10);
         InventoryReservation confirmedReservation = new InventoryReservation(
-                productId, customerId, quantity, ReservationType.CONFIRMED, neverExpires);
+                productId, userId, quantity, ReservationType.CONFIRMED, neverExpires);
         confirmedReservation = reservationRepository.save(confirmedReservation);
 
-        logger.info("確認預留成功: productId={}, customerId={}, quantity={}, reservationId={}", 
-                   productId, customerId, quantity, confirmedReservation.getId());
+        logger.info("確認預留成功: productId={}, userId={}, quantity={}, reservationId={}", 
+                   productId, userId, quantity, confirmedReservation.getId());
         
         return confirmedReservation;
     }
 
     @Override
-    public void releaseTemporaryReservation(Long productId, String customerId, Integer quantity)
+    public void releaseTemporaryReservation(Long productId, Long userId, Integer quantity)
             throws ReservationNotFoundException {
         
-        logger.info("開始釋放臨時預留: productId={}, customerId={}, quantity={}", productId, customerId, quantity);
+        logger.info("開始釋放臨時預留: productId={}, userId={}, quantity={}", productId, userId, quantity);
         
         try {
             lockManager.executeWithProductLock(productId, () -> {
                 try {
-                    performReleaseTemporaryReservation(productId, customerId, quantity);
+                    performReleaseTemporaryReservation(productId, userId, quantity);
                 } catch (ReservationNotFoundException e) {
                     throw new RuntimeException(e);
                 }
@@ -291,7 +291,7 @@ public class InventoryServiceImpl implements InventoryService {
         }
     }
 
-    private void performReleaseTemporaryReservation(Long productId, String customerId, Integer quantity)
+    private void performReleaseTemporaryReservation(Long productId, Long userId, Integer quantity)
             throws ReservationNotFoundException {
         
         // 查詢庫存
@@ -300,11 +300,11 @@ public class InventoryServiceImpl implements InventoryService {
 
         // 查找臨時預留記錄
         List<InventoryReservation> temporaryReservations = reservationRepository
-                .findByProductIdAndCustomerIdAndType(productId, customerId, ReservationType.TEMPORARY);
+                .findByProductIdAndUserIdAndType(productId, userId, ReservationType.TEMPORARY);
         
         if (temporaryReservations.isEmpty()) {
             throw new ReservationNotFoundException(
-                String.format("找不到臨時預留記錄。產品ID: %d, 客戶ID: %s", productId, customerId));
+                String.format("找不到臨時預留記錄。產品ID: %d, 客戶ID: %s", productId, userId));
         }
 
         // 計算總的臨時預留數量
@@ -329,7 +329,7 @@ public class InventoryServiceImpl implements InventoryService {
             int remainingQuantity = totalTemporaryQuantity - releaseQuantity;
             LocalDateTime expiresAt = LocalDateTime.now().plusHours(24); // 預設24小時過期
             InventoryReservation newReservation = new InventoryReservation(
-                    productId, customerId, remainingQuantity, ReservationType.TEMPORARY, expiresAt);
+                    productId, userId, remainingQuantity, ReservationType.TEMPORARY, expiresAt);
             reservationRepository.save(newReservation);
             
             inventory.setAvailableStock(inventory.getAvailableStock() - remainingQuantity);
@@ -337,20 +337,20 @@ public class InventoryServiceImpl implements InventoryService {
             inventoryRepository.save(inventory);
         }
 
-        logger.info("臨時預留釋放成功: productId={}, customerId={}, releaseQuantity={}", 
-                   productId, customerId, releaseQuantity);
+        logger.info("臨時預留釋放成功: productId={}, userId={}, releaseQuantity={}", 
+                   productId, userId, releaseQuantity);
     }
 
     @Override
-    public void releaseConfirmedReservation(Long productId, String customerId, Integer quantity)
+    public void releaseConfirmedReservation(Long productId, Long userId, Integer quantity)
             throws ReservationNotFoundException {
         
-        logger.info("開始釋放確認預留: productId={}, customerId={}, quantity={}", productId, customerId, quantity);
+        logger.info("開始釋放確認預留: productId={}, userId={}, quantity={}", productId, userId, quantity);
         
         try {
             lockManager.executeWithProductLock(productId, () -> {
                 try {
-                    performReleaseConfirmedReservation(productId, customerId, quantity);
+                    performReleaseConfirmedReservation(productId, userId, quantity);
                     return null; // 返回 null 因為這是 void 方法
                 } catch (ReservationNotFoundException e) {
                     throw new RuntimeException(e);
@@ -367,7 +367,7 @@ public class InventoryServiceImpl implements InventoryService {
         }
     }
 
-    private void performReleaseConfirmedReservation(Long productId, String customerId, Integer quantity)
+    private void performReleaseConfirmedReservation(Long productId, Long userId, Integer quantity)
             throws ReservationNotFoundException {
         
         // 查詢庫存
@@ -376,11 +376,11 @@ public class InventoryServiceImpl implements InventoryService {
 
         // 查找確認預留記錄
         List<InventoryReservation> confirmedReservations = reservationRepository
-                .findByProductIdAndCustomerIdAndType(productId, customerId, ReservationType.CONFIRMED);
+                .findByProductIdAndUserIdAndType(productId, userId, ReservationType.CONFIRMED);
         
         if (confirmedReservations.isEmpty()) {
             throw new ReservationNotFoundException(
-                String.format("找不到確認預留記錄。產品ID: %d, 客戶ID: %s", productId, customerId));
+                String.format("找不到確認預留記錄。產品ID: %d, 客戶ID: %s", productId, userId));
         }
 
         // 計算總的確認預留數量
@@ -405,28 +405,28 @@ public class InventoryServiceImpl implements InventoryService {
             int remainingQuantity = totalConfirmedQuantity - releaseQuantity;
             LocalDateTime neverExpires = LocalDateTime.now().plusYears(10);
             InventoryReservation newReservation = new InventoryReservation(
-                    productId, customerId, remainingQuantity, ReservationType.CONFIRMED, neverExpires);
+                    productId, userId, remainingQuantity, ReservationType.CONFIRMED, neverExpires);
             reservationRepository.save(newReservation);
             
             inventory.setConfirmedReserved(inventory.getConfirmedReserved() + remainingQuantity);
             inventoryRepository.save(inventory);
         }
 
-        logger.info("確認預留釋放成功: productId={}, customerId={}, releaseQuantity={}", 
-                   productId, customerId, releaseQuantity);
+        logger.info("確認預留釋放成功: productId={}, userId={}, releaseQuantity={}", 
+                   productId, userId, releaseQuantity);
     }
 
     @Override
     @Retryable(value = {OptimisticLockingFailureException.class}, maxAttempts = MAX_RETRY_ATTEMPTS, backoff = @Backoff(delay = 1000, multiplier = 2))
-    public InventoryReservation adjustTemporaryReservation(Long productId, String customerId, Integer newQuantity, LocalDateTime expiresAt)
+    public InventoryReservation adjustTemporaryReservation(Long productId, Long userId, Integer newQuantity, LocalDateTime expiresAt)
             throws InsufficientStockException, ReservationNotFoundException {
         
-        logger.info("開始調整臨時預留: productId={}, customerId={}, newQuantity={}", productId, customerId, newQuantity);
+        logger.info("開始調整臨時預留: productId={}, userId={}, newQuantity={}", productId, userId, newQuantity);
         
         try {
             return lockManager.executeWithProductLock(productId, () -> {
                 try {
-                    return performAdjustTemporaryReservation(productId, customerId, newQuantity, expiresAt);
+                    return performAdjustTemporaryReservation(productId, userId, newQuantity, expiresAt);
                 } catch (InsufficientStockException | ReservationNotFoundException e) {
                     throw new RuntimeException(e);
                 }
@@ -445,7 +445,7 @@ public class InventoryServiceImpl implements InventoryService {
         }
     }
 
-    private InventoryReservation performAdjustTemporaryReservation(Long productId, String customerId, Integer newQuantity, LocalDateTime expiresAt)
+    private InventoryReservation performAdjustTemporaryReservation(Long productId, Long userId, Integer newQuantity, LocalDateTime expiresAt)
             throws InsufficientStockException, ReservationNotFoundException {
         
         // 使用樂觀鎖查詢庫存
@@ -454,11 +454,11 @@ public class InventoryServiceImpl implements InventoryService {
 
         // 查找現有的臨時預留記錄
         List<InventoryReservation> existingReservations = reservationRepository
-                .findByProductIdAndCustomerIdAndType(productId, customerId, ReservationType.TEMPORARY);
+                .findByProductIdAndUserIdAndType(productId, userId, ReservationType.TEMPORARY);
         
         if (existingReservations.isEmpty()) {
             throw new ReservationNotFoundException(
-                String.format("找不到臨時預留記錄。產品ID: %d, 客戶ID: %s", productId, customerId));
+                String.format("找不到臨時預留記錄。產品ID: %d, 客戶ID: %s", productId, userId));
         }
 
         // 計算現有預留數量
@@ -490,11 +490,11 @@ public class InventoryServiceImpl implements InventoryService {
 
         // 創建新的預留記錄
         InventoryReservation newReservation = new InventoryReservation(
-                productId, customerId, newQuantity, ReservationType.TEMPORARY, expiresAt);
+                productId, userId, newQuantity, ReservationType.TEMPORARY, expiresAt);
         newReservation = reservationRepository.save(newReservation);
 
-        logger.info("臨時預留調整成功: productId={}, customerId={}, oldQuantity={}, newQuantity={}, reservationId={}", 
-                   productId, customerId, currentQuantity, newQuantity, newReservation.getId());
+        logger.info("臨時預留調整成功: productId={}, userId={}, oldQuantity={}, newQuantity={}, reservationId={}", 
+                   productId, userId, currentQuantity, newQuantity, newReservation.getId());
         
         return newReservation;
     }
@@ -537,8 +537,8 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<InventoryReservation> findReservationsByCustomer(String customerId) {
-        return reservationRepository.findByCustomerId(customerId);
+    public List<InventoryReservation> findReservationsByUser(Long userId) {
+        return reservationRepository.findByUserId(userId);
     }
 
     @Override

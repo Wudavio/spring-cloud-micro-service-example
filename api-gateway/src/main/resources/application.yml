@@ -34,7 +34,13 @@ spring:
         - id: order-service
           uri: lb://order-service
           predicates:
-            - Path=/api/orders/**
+            - Path=/api/orders/**,/api/cart/**
+          filters:
+            - StripPrefix=1
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**,/api/users/**
           filters:
             - StripPrefix=1
 

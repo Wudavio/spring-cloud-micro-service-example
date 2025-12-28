@@ -19,8 +19,8 @@ public class OrderDTO {
     @Schema(description = "訂單號", example = "ORD-20231201-001")
     private String orderNumber;
     
-    @Schema(description = "客戶ID", example = "customer123")
-    private String customerId;
+    @Schema(description = "用戶ID", example = "123")
+    private Long userId;
     
     @Schema(description = "訂單狀態", example = "PENDING")
     private OrderStatus status;
@@ -41,12 +41,12 @@ public class OrderDTO {
     public OrderDTO() {}
     
     // 建構子
-    public OrderDTO(Long id, String orderNumber, String customerId, OrderStatus status,
+    public OrderDTO(Long id, String orderNumber, Long userId, OrderStatus status,
                     BigDecimal totalAmount, List<OrderItemDTO> items, 
                     LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.orderNumber = orderNumber;
-        this.customerId = customerId;
+        this.userId = userId;
         this.status = status;
         this.totalAmount = totalAmount;
         this.items = items;
@@ -71,12 +71,12 @@ public class OrderDTO {
         this.orderNumber = orderNumber;
     }
     
-    public String getCustomerId() {
-        return customerId;
+    public Long getUserId() {
+        return userId;
     }
     
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
     
     public OrderStatus getStatus() {

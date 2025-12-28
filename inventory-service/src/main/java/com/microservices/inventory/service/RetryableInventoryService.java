@@ -35,12 +35,12 @@ public class RetryableInventoryService {
     /**
      * 可重試的臨時預留操作
      */
-    public InventoryReservation reserveTemporaryWithRetry(Long productId, String customerId, 
+    public InventoryReservation reserveTemporaryWithRetry(Long productId, Long userId, 
                                                          Integer quantity, LocalDateTime expiresAt) 
             throws InventoryService.InsufficientStockException, SystemBusyException {
         
-        logger.info("開始可重試臨時預留: productId={}, customerId={}, quantity={}", 
-                   productId, customerId, quantity);
+        logger.info("開始可重試臨時預留: productId={}, userId={}, quantity={}", 
+                   productId, userId, quantity);
         
         try {
             return retryTemplate.execute(new RetryCallback<InventoryReservation, Exception>() {
@@ -52,7 +52,7 @@ public class RetryableInventoryService {
                     }
                     
                     try {
-                        return inventoryService.reserveTemporary(productId, customerId, quantity, expiresAt);
+                        return inventoryService.reserveTemporary(productId, userId, quantity, expiresAt);
                     } catch (InventoryService.ConcurrentModificationException e) {
                         // 轉換為系統繁忙異常
                         throw new SystemBusyException("庫存預留", "請稍後重試", e);
@@ -67,7 +67,7 @@ public class RetryableInventoryService {
                 throw (SystemBusyException) e;
             }
             
-            logger.error("臨時預留重試失敗: productId={}, customerId={}", productId, customerId, e);
+            logger.error("臨時預留重試失敗: productId={}, userId={}", productId, userId, e);
             throw new RetryExhaustedException("臨時預留", 3, e);
         }
     }
@@ -75,11 +75,11 @@ public class RetryableInventoryService {
     /**
      * 可重試的確認預留操作
      */
-    public InventoryReservation confirmReservationWithRetry(Long productId, String customerId, Integer quantity) 
+    public InventoryReservation confirmReservationWithRetry(Long productId, Long userId, Integer quantity) 
             throws InventoryService.ReservationNotFoundException, SystemBusyException {
         
-        logger.info("開始可重試確認預留: productId={}, customerId={}, quantity={}", 
-                   productId, customerId, quantity);
+        logger.info("開始可重試確認預留: productId={}, userId={}, quantity={}", 
+                   productId, userId, quantity);
         
         try {
             return retryTemplate.execute(new RetryCallback<InventoryReservation, Exception>() {
@@ -91,7 +91,7 @@ public class RetryableInventoryService {
                     }
                     
                     try {
-                        return inventoryService.confirmReservation(productId, customerId, quantity);
+                        return inventoryService.confirmReservation(productId, userId, quantity);
                     } catch (InventoryService.ConcurrentModificationException e) {
                         // 轉換為系統繁忙異常
                         throw new SystemBusyException("預留確認", "請稍後重試", e);
@@ -106,7 +106,7 @@ public class RetryableInventoryService {
                 throw (SystemBusyException) e;
             }
             
-            logger.error("確認預留重試失敗: productId={}, customerId={}", productId, customerId, e);
+            logger.error("確認預留重試失敗: productId={}, userId={}", productId, userId, e);
             throw new RetryExhaustedException("確認預留", 3, e);
         }
     }
@@ -114,12 +114,12 @@ public class RetryableInventoryService {
     /**
      * 可重試的調整臨時預留操作
      */
-    public InventoryReservation adjustTemporaryReservationWithRetry(Long productId, String customerId, 
+    public InventoryReservation adjustTemporaryReservationWithRetry(Long productId, Long userId, 
                                                                    Integer newQuantity, LocalDateTime expiresAt) 
             throws InventoryService.InsufficientStockException, InventoryService.ReservationNotFoundException, SystemBusyException {
         
-        logger.info("開始可重試調整臨時預留: productId={}, customerId={}, newQuantity={}", 
-                   productId, customerId, newQuantity);
+        logger.info("開始可重試調整臨時預留: productId={}, userId={}, newQuantity={}", 
+                   productId, userId, newQuantity);
         
         try {
             return retryTemplate.execute(new RetryCallback<InventoryReservation, Exception>() {
@@ -130,7 +130,7 @@ public class RetryableInventoryService {
                                    context.getRetryCount(), productId);
                     }
                     
-                    return inventoryService.adjustTemporaryReservation(productId, customerId, newQuantity, expiresAt);
+                    return inventoryService.adjustTemporaryReservation(productId, userId, newQuantity, expiresAt);
                 }
             });
         } catch (Exception e) {
@@ -141,7 +141,7 @@ public class RetryableInventoryService {
                 throw (InventoryService.ReservationNotFoundException) e;
             }
             
-            logger.error("調整臨時預留重試失敗: productId={}, customerId={}", productId, customerId, e);
+            logger.error("調整臨時預留重試失敗: productId={}, userId={}", productId, userId, e);
             throw new RetryExhaustedException("調整臨時預留", 3, e);
         }
     }

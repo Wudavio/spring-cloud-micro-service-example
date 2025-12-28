@@ -10,7 +10,6 @@ import com.microservices.order.entity.*;
 import com.microservices.order.exception.CartNotFoundException;
 import com.microservices.order.exception.OrderNotFoundException;
 import com.microservices.order.exception.RetryExhaustedException;
-import com.microservices.order.exception.SystemBusyException;
 import com.microservices.order.mapper.OrderMapper;
 import com.microservices.order.repository.CartRepository;
 import com.microservices.order.repository.OrderRepository;
@@ -68,10 +67,10 @@ public class OrderServiceImpl implements OrderService {
     
     @Override
     public OrderDTO placeOrder(PlaceOrderRequest request) {
-        logger.info("開始下單: customerId={}", request.getCustomerId());
+        logger.info("開始下單: customerId={}", request.getUserId());
         
         // 1. 獲取購物車
-        Cart cart = cartRepository.findByCustomerIdWithItems(request.getCustomerId())
+        Cart cart = cartRepository.findByUserIdWithItems(request.getUserId())
             .orElseThrow(() -> new CartNotFoundException("購物車為空或不存在"));
         
         if (cart.getItems().isEmpty()) {
@@ -82,13 +81,13 @@ public class OrderServiceImpl implements OrderService {
         String orderNumber = generateOrderNumber();
         BigDecimal totalAmount = calculateTotalAmount(cart);
         
-        Order order = new Order(orderNumber, request.getCustomerId(), totalAmount);
+        Order order = new Order(orderNumber, request.getUserId(), totalAmount);
         order = orderRepository.save(order);
         
         // 3. 轉換購物車項目為訂單項目並確認庫存預留
         for (CartItem cartItem : cart.getItems()) {
             // 確認庫存預留（從臨時預留轉為正式預留）
-            confirmInventoryReservation(cartItem.getProductId(), request.getCustomerId(), 
+            confirmInventoryReservation(cartItem.getProductId(), request.getUserId(), 
                                       cartItem.getQuantity());
             
             // 創建訂單項目
@@ -112,7 +111,7 @@ public class OrderServiceImpl implements OrderService {
         OrderDTO orderDTO = orderMapper.toDTO(savedOrder);
         enrichOrderWithProductInfo(orderDTO);
         
-        logger.info("成功創建訂單: orderNumber={}, customerId={}", orderNumber, request.getCustomerId());
+        logger.info("成功創建訂單: orderNumber={}, customerId={}", orderNumber, request.getUserId());
         
         return orderDTO;
     }
@@ -147,10 +146,10 @@ public class OrderServiceImpl implements OrderService {
     
     @Override
     @Transactional(readOnly = true)
-    public Page<OrderDTO> getCustomerOrders(String customerId, Pageable pageable) {
-        logger.info("獲取客戶訂單列表: customerId={}", customerId);
+    public Page<OrderDTO> getUserOrders(Long userId, Pageable pageable) {
+        logger.info("獲取用戶訂單列表: userId={}", userId);
         
-        Page<Order> orders = orderRepository.findByCustomerId(customerId, pageable);
+        Page<Order> orders = orderRepository.findByUserId(userId, pageable);
         
         return orders.map(order -> {
             OrderDTO orderDTO = orderMapper.toDTO(order);
@@ -172,7 +171,7 @@ public class OrderServiceImpl implements OrderService {
         
         // 釋放庫存預留
         for (OrderItem item : order.getItems()) {
-            releaseInventoryReservation(item.getProductId(), order.getCustomerId(), 
+            releaseInventoryReservation(item.getProductId(), order.getUserId(), 
                                       item.getQuantity());
         }
         
@@ -233,7 +232,7 @@ public class OrderServiceImpl implements OrderService {
     /**
      * 確認庫存預留（帶重試機制）
      */
-    private void confirmInventoryReservation(Long productId, String customerId, Integer quantity) {
+    private void confirmInventoryReservation(Long productId, Long userId, Integer quantity) {
         try {
             inventoryRetryTemplate.execute(new RetryCallback<Void, Exception>() {
                 @Override
@@ -245,7 +244,7 @@ public class OrderServiceImpl implements OrderService {
                     
                     try {
                         InventoryServiceClient.ConfirmReservationRequest request = 
-                            new InventoryServiceClient.ConfirmReservationRequest(customerId, quantity);
+                            new InventoryServiceClient.ConfirmReservationRequest(userId, quantity);
                         inventoryServiceClient.confirmReservation(productId, request);
                         return null;
                     } catch (FeignException.ServiceUnavailable | FeignException.InternalServerError e) {
@@ -264,8 +263,8 @@ public class OrderServiceImpl implements OrderService {
                 }
             });
         } catch (Exception e) {
-            logger.error("確認庫存預留最終失敗: productId={}, customerId={}, quantity={}", 
-                        productId, customerId, quantity, e);
+            logger.error("確認庫存預留最終失敗: productId={}, userId={}, quantity={}", 
+                        productId, userId, quantity, e);
             if (e instanceof RuntimeException && e.getMessage().contains("庫存確認失敗")) {
                 throw (RuntimeException) e;
             }
@@ -276,7 +275,7 @@ public class OrderServiceImpl implements OrderService {
     /**
      * 釋放庫存預留（帶重試機制）
      */
-    private void releaseInventoryReservation(Long productId, String customerId, Integer quantity) {
+    private void releaseInventoryReservation(Long productId, Long userId, Integer quantity) {
         try {
             inventoryRetryTemplate.execute(new RetryCallback<Void, Exception>() {
                 @Override
@@ -288,7 +287,7 @@ public class OrderServiceImpl implements OrderService {
                     
                     try {
                         InventoryServiceClient.ReleaseInventoryRequest request = 
-                            new InventoryServiceClient.ReleaseInventoryRequest(customerId, quantity, "CONFIRMED");
+                            new InventoryServiceClient.ReleaseInventoryRequest(userId, quantity, "CONFIRMED");
                         inventoryServiceClient.releaseInventory(productId, request);
                         return null;
                     } catch (FeignException.ServiceUnavailable | FeignException.InternalServerError e) {
@@ -296,16 +295,16 @@ public class OrderServiceImpl implements OrderService {
                         throw e;
                     } catch (Exception e) {
                         // 釋放庫存失敗不應該阻止訂單取消，只記錄錯誤
-                        logger.error("釋放庫存預留失敗: productId={}, customerId={}, quantity={}", 
-                                    productId, customerId, quantity, e);
+                        logger.error("釋放庫存預留失敗: productId={}, userId={}, quantity={}", 
+                                    productId, userId, quantity, e);
                         return null; // 不拋出異常，允許操作繼續
                     }
                 }
             });
         } catch (Exception e) {
             // 釋放庫存失敗不應該阻止訂單取消，只記錄錯誤
-            logger.error("釋放庫存預留最終失敗: productId={}, customerId={}, quantity={}", 
-                        productId, customerId, quantity, e);
+            logger.error("釋放庫存預留最終失敗: productId={}, userId={}, quantity={}", 
+                        productId, userId, quantity, e);
         }
     }
     

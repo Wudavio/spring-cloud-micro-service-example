@@ -24,7 +24,7 @@ public class Order {
     private String orderNumber;
     
     @Column(nullable = false)
-    private String customerId;
+    private Long userId;
     
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -46,9 +46,9 @@ public class Order {
     public Order() {}
     
     // 建構子
-    public Order(String orderNumber, String customerId, BigDecimal totalAmount) {
+    public Order(String orderNumber, Long userId, BigDecimal totalAmount) {
         this.orderNumber = orderNumber;
-        this.customerId = customerId;
+        this.userId = userId;
         this.totalAmount = totalAmount;
     }
     
@@ -69,12 +69,12 @@ public class Order {
         this.orderNumber = orderNumber;
     }
     
-    public String getCustomerId() {
-        return customerId;
+    public Long getUserId() {
+        return userId;
     }
     
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
     
     public OrderStatus getStatus() {

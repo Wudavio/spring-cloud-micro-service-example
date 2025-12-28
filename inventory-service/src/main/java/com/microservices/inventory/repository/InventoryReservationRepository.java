@@ -20,19 +20,19 @@ import java.util.Optional;
 public interface InventoryReservationRepository extends JpaRepository<InventoryReservation, Long> {
 
     /**
-     * 根據產品ID和客戶ID查找預留記錄
+     * 根據產品ID和用戶ID查找預留記錄
      */
-    List<InventoryReservation> findByProductIdAndCustomerId(Long productId, String customerId);
+    List<InventoryReservation> findByProductIdAndUserId(Long productId, Long userId);
 
     /**
-     * 根據產品ID、客戶ID和預留類型查找預留記錄
+     * 根據產品ID、用戶ID和預留類型查找預留記錄
      */
-    List<InventoryReservation> findByProductIdAndCustomerIdAndType(Long productId, String customerId, ReservationType type);
+    List<InventoryReservation> findByProductIdAndUserIdAndType(Long productId, Long userId, ReservationType type);
 
     /**
-     * 根據客戶ID查找所有預留記錄
+     * 根據用戶ID查找所有預留記錄
      */
-    List<InventoryReservation> findByCustomerId(String customerId);
+    List<InventoryReservation> findByUserId(Long userId);
 
     /**
      * 根據產品ID查找所有預留記錄
@@ -59,15 +59,15 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
     /**
      * 根據客戶ID和預留類型統計預留數量
      */
-    @Query("SELECT COALESCE(SUM(r.quantity), 0) FROM InventoryReservation r WHERE r.customerId = :customerId AND r.type = :type")
-    Integer sumQuantityByCustomerIdAndType(@Param("customerId") String customerId, @Param("type") ReservationType type);
+    @Query("SELECT COALESCE(SUM(r.quantity), 0) FROM InventoryReservation r WHERE r.userId = :userId AND r.type = :type")
+    Integer sumQuantityByUserIdAndType(@Param("userId") Long userId, @Param("type") ReservationType type);
 
     /**
      * 刪除指定產品和客戶的特定類型預留記錄
      */
     @Modifying
-    @Query("DELETE FROM InventoryReservation r WHERE r.productId = :productId AND r.customerId = :customerId AND r.type = :type")
-    void deleteByProductIdAndCustomerIdAndType(@Param("productId") Long productId, @Param("customerId") String customerId, @Param("type") ReservationType type);
+    @Query("DELETE FROM InventoryReservation r WHERE r.productId = :productId AND r.userId = :userId AND r.type = :type")
+    void deleteByProductIdAndUserIdAndType(@Param("productId") Long productId, @Param("userId") Long userId, @Param("type") ReservationType type);
 
     /**
      * 刪除過期的預留記錄
@@ -79,7 +79,7 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
     /**
      * 檢查是否存在指定的預留記錄
      */
-    boolean existsByProductIdAndCustomerIdAndType(Long productId, String customerId, ReservationType type);
+    boolean existsByProductIdAndUserIdAndType(Long productId, Long userId, ReservationType type);
 
     /**
      * 查找特定產品的所有有效預留記錄（未過期）

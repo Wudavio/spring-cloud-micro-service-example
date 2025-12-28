@@ -50,14 +50,14 @@ public interface InventoryService {
      * 使用分散式鎖和樂觀鎖確保並發安全
      * 
      * @param productId 產品ID
-     * @param customerId 客戶ID
+     * @param userId 客戶ID
      * @param quantity 預留數量
      * @param expiresAt 過期時間
      * @return 預留記錄
      * @throws InsufficientStockException 庫存不足時拋出
      * @throws ConcurrentModificationException 並發衝突時拋出
      */
-    InventoryReservation reserveTemporary(Long productId, String customerId, Integer quantity, LocalDateTime expiresAt)
+    InventoryReservation reserveTemporary(Long productId, Long userId, Integer quantity, LocalDateTime expiresAt)
             throws InsufficientStockException, ConcurrentModificationException;
 
     /**
@@ -65,49 +65,49 @@ public interface InventoryService {
      * 使用分散式鎖確保原子性
      * 
      * @param productId 產品ID
-     * @param customerId 客戶ID
+     * @param userId 客戶ID
      * @param quantity 確認數量
      * @return 確認預留記錄
      * @throws ReservationNotFoundException 找不到臨時預留時拋出
      * @throws ConcurrentModificationException 並發衝突時拋出
      */
-    InventoryReservation confirmReservation(Long productId, String customerId, Integer quantity)
+    InventoryReservation confirmReservation(Long productId, Long userId, Integer quantity)
             throws ReservationNotFoundException, ConcurrentModificationException;
 
     /**
      * 釋放臨時預留（購物車移除商品）
      * 
      * @param productId 產品ID
-     * @param customerId 客戶ID
+     * @param userId 客戶ID
      * @param quantity 釋放數量
      * @throws ReservationNotFoundException 找不到預留記錄時拋出
      */
-    void releaseTemporaryReservation(Long productId, String customerId, Integer quantity)
+    void releaseTemporaryReservation(Long productId, Long userId, Integer quantity)
             throws ReservationNotFoundException;
 
     /**
      * 釋放正式預留（訂單取消）
      * 
      * @param productId 產品ID
-     * @param customerId 客戶ID
+     * @param userId 客戶ID
      * @param quantity 釋放數量
      * @throws ReservationNotFoundException 找不到預留記錄時拋出
      */
-    void releaseConfirmedReservation(Long productId, String customerId, Integer quantity)
+    void releaseConfirmedReservation(Long productId, Long userId, Integer quantity)
             throws ReservationNotFoundException;
 
     /**
      * 調整臨時預留數量（購物車數量變更）
      * 
      * @param productId 產品ID
-     * @param customerId 客戶ID
+     * @param userId 客戶ID
      * @param newQuantity 新的預留數量
      * @param expiresAt 新的過期時間
      * @return 更新後的預留記錄
      * @throws InsufficientStockException 庫存不足時拋出
      * @throws ReservationNotFoundException 找不到預留記錄時拋出
      */
-    InventoryReservation adjustTemporaryReservation(Long productId, String customerId, Integer newQuantity, LocalDateTime expiresAt)
+    InventoryReservation adjustTemporaryReservation(Long productId, Long userId, Integer newQuantity, LocalDateTime expiresAt)
             throws InsufficientStockException, ReservationNotFoundException;
 
     /**
@@ -120,10 +120,10 @@ public interface InventoryService {
     /**
      * 查詢客戶的所有預留記錄
      * 
-     * @param customerId 客戶ID
+     * @param userId 客戶ID
      * @return 預留記錄列表
      */
-    List<InventoryReservation> findReservationsByCustomer(String customerId);
+    List<InventoryReservation> findReservationsByUser(Long userId);
 
     /**
      * 查詢產品的所有預留記錄

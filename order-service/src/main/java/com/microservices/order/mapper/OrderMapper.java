@@ -30,7 +30,7 @@ public class OrderMapper {
         return new OrderDTO(
             order.getId(),
             order.getOrderNumber(),
-            order.getCustomerId(),
+            order.getUserId(),
             order.getStatus(),
             order.getTotalAmount(),
             itemDTOs,
@@ -67,7 +67,7 @@ public class OrderMapper {
         
         Order order = new Order(
             dto.getOrderNumber(),
-            dto.getCustomerId(),
+            dto.getUserId(),
             dto.getTotalAmount()
         );
         order.setId(dto.getId());

@@ -22,20 +22,20 @@ public interface CartService {
     /**
      * 從購物車移除商品
      */
-    CartDTO removeFromCart(Long itemId, String customerId);
+    CartDTO removeFromCart(Long itemId, Long userId);
     
     /**
      * 獲取購物車
      */
-    CartDTO getCart(String customerId);
+    CartDTO getCart(Long userId);
     
     /**
      * 清空購物車
      */
-    void clearCart(String customerId);
+    void clearCart(Long userId);
     
     /**
      * 檢查購物車是否存在
      */
-    boolean cartExists(String customerId);
+    boolean cartExists(Long userId);
 }

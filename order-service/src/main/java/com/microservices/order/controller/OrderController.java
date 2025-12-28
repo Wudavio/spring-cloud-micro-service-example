@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,13 +50,17 @@ public class OrderController {
         @ApiResponse(responseCode = "409", description = "庫存不足")
     })
     @PostMapping
-    public ResponseEntity<OrderDTO> placeOrder(@Valid @RequestBody PlaceOrderRequest request) {
-        logger.info("下單請求: customerId={}", request.getCustomerId());
+    public ResponseEntity<OrderDTO> placeOrder(@RequestBody PlaceOrderRequest request,
+                                             HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        request.setUserId(userId);
+        
+        logger.info("下單請求: userId={}", userId);
         
         OrderDTO order = orderService.placeOrder(request);
         
-        logger.info("成功創建訂單: orderNumber={}, customerId={}, totalAmount={}", 
-                   order.getOrderNumber(), order.getCustomerId(), order.getTotalAmount());
+        logger.info("成功創建訂單: orderNumber={}, userId={}, totalAmount={}", 
+                   order.getOrderNumber(), order.getUserId(), order.getTotalAmount());
         
         return ResponseEntity.status(HttpStatus.CREATED).body(order);
     }
@@ -103,7 +108,7 @@ public class OrderController {
         OrderDTO order = orderService.getOrderByNumber(orderNumber);
         
         logger.info("成功根據訂單號獲取訂單: orderNumber={}, customerId={}, status={}", 
-                   orderNumber, order.getCustomerId(), order.getStatus());
+                   orderNumber, order.getUserId(), order.getStatus());
         
         return ResponseEntity.ok(order);
     }
@@ -118,17 +123,19 @@ public class OrderController {
         @ApiResponse(responseCode = "400", description = "請求參數無效")
     })
     @GetMapping
-    public ResponseEntity<Page<OrderDTO>> getCustomerOrders(
-            @Parameter(description = "客戶ID", required = true) @RequestParam String customerId,
+    public ResponseEntity<Page<OrderDTO>> getUserOrders(
+            HttpServletRequest httpRequest,
             @Parameter(description = "分頁參數") @PageableDefault(size = 20) Pageable pageable) {
         
-        logger.info("獲取客戶訂單列表請求: customerId={}, page={}, size={}", 
-                   customerId, pageable.getPageNumber(), pageable.getPageSize());
+        Long userId = (Long) httpRequest.getAttribute("userId");
         
-        Page<OrderDTO> orders = orderService.getCustomerOrders(customerId, pageable);
+        logger.info("獲取客戶訂單列表請求: userId={}, page={}, size={}", 
+                   userId, pageable.getPageNumber(), pageable.getPageSize());
         
-        logger.info("成功獲取客戶訂單列表: customerId={}, totalOrders={}, currentPageSize={}", 
-                   customerId, orders.getTotalElements(), orders.getNumberOfElements());
+        Page<OrderDTO> orders = orderService.getUserOrders(userId, pageable);
+        
+        logger.info("成功獲取客戶訂單列表: userId={}, totalOrders={}, currentPageSize={}", 
+                   userId, orders.getTotalElements(), orders.getNumberOfElements());
         
         return ResponseEntity.ok(orders);
     }

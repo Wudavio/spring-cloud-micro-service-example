@@ -57,7 +57,7 @@ class RetryMechanismPropertyTest {
         InventoryServiceClient.ReservationDTO mockReservation = new InventoryServiceClient.ReservationDTO();
         mockReservation.setId(1L);
         mockReservation.setProductId(1L);
-        mockReservation.setCustomerId("customer1");
+        mockReservation.setUserId("customer1");
         mockReservation.setQuantity(2);
         mockReservation.setType("TEMPORARY");
         when(inventoryServiceClient.reserveInventory(anyLong(), any())).thenReturn(mockReservation);
@@ -70,7 +70,7 @@ class RetryMechanismPropertyTest {
 
         // 驗證結果
         assertThat(result).isNotNull();
-        assertThat(result.getCustomerId()).isEqualTo("customer1");
+        assertThat(result.getUserId()).isEqualTo("customer1");
         assertThat(result.getItems()).hasSize(1);
     }
 
@@ -99,14 +99,14 @@ class RetryMechanismPropertyTest {
 
         // 驗證結果
         assertThat(result).isNotNull();
-        assertThat(result.getCustomerId()).isEqualTo("customer1");
+        assertThat(result.getUserId()).isEqualTo("customer1");
     }
 
     private InventoryServiceClient.ReservationDTO createMockReservation() {
         InventoryServiceClient.ReservationDTO reservation = new InventoryServiceClient.ReservationDTO();
         reservation.setId(1L);
         reservation.setProductId(1L);
-        reservation.setCustomerId("customer1");
+        reservation.setUserId("customer1");
         reservation.setQuantity(2);
         reservation.setType("TEMPORARY");
         return reservation;

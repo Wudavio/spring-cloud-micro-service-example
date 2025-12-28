@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,14 +47,18 @@ public class CartController {
         @ApiResponse(responseCode = "409", description = "庫存不足")
     })
     @PostMapping("/items")
-    public ResponseEntity<CartDTO> addToCart(@Valid @RequestBody AddToCartRequest request) {
-        logger.info("添加商品到購物車請求: customerId={}, productId={}, quantity={}", 
-                   request.getCustomerId(), request.getProductId(), request.getQuantity());
+    public ResponseEntity<CartDTO> addToCart(@Valid @RequestBody AddToCartRequest request,
+                                           HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        request.setUserId(userId);
+        
+        logger.info("添加商品到購物車請求: userId={}, productId={}, quantity={}", 
+                   userId, request.getProductId(), request.getQuantity());
         
         CartDTO cart = cartService.addToCart(request);
         
-        logger.info("成功添加商品到購物車: customerId={}, cartItemCount={}", 
-                   request.getCustomerId(), cart.getItems().size());
+        logger.info("成功添加商品到購物車: userId={}, cartItemCount={}", 
+                   userId, cart.getItems().size());
         
         return ResponseEntity.status(HttpStatus.CREATED).body(cart);
     }
@@ -76,7 +81,7 @@ public class CartController {
             @Valid @RequestBody UpdateCartItemRequest request) {
         
         logger.info("更新購物車項目請求: itemId={}, customerId={}, quantity={}", 
-                   itemId, request.getCustomerId(), request.getQuantity());
+                   itemId, request.getUserId(), request.getQuantity());
         
         CartDTO cart = cartService.updateCartItem(itemId, request);
         
@@ -99,11 +104,13 @@ public class CartController {
     @DeleteMapping("/items/{itemId}")
     public ResponseEntity<CartDTO> removeFromCart(
             @Parameter(description = "購物車項目ID", required = true) @PathVariable Long itemId,
-            @Parameter(description = "客戶ID", required = true) @RequestParam String customerId) {
+            HttpServletRequest httpRequest) {
         
-        logger.info("從購物車移除商品請求: itemId={}, customerId={}", itemId, customerId);
+        Long userId = (Long) httpRequest.getAttribute("userId");
         
-        CartDTO cart = cartService.removeFromCart(itemId, customerId);
+        logger.info("從購物車移除商品請求: itemId={}, userId={}", itemId, userId);
+        
+        CartDTO cart = cartService.removeFromCart(itemId, userId);
         
         logger.info("成功從購物車移除商品: itemId={}", itemId);
         
@@ -122,14 +129,15 @@ public class CartController {
         @ApiResponse(responseCode = "404", description = "購物車不存在")
     })
     @GetMapping
-    public ResponseEntity<CartDTO> getCart(
-            @Parameter(description = "客戶ID", required = true) @RequestParam String customerId) {
-        logger.info("獲取購物車請求: customerId={}", customerId);
+    public ResponseEntity<CartDTO> getCart(HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("userId");
         
-        CartDTO cart = cartService.getCart(customerId);
+        logger.info("獲取購物車請求: userId={}", userId);
         
-        logger.info("成功獲取購物車: customerId={}, itemCount={}", 
-                   customerId, cart.getItems().size());
+        CartDTO cart = cartService.getCart(userId);
+        
+        logger.info("成功獲取購物車: userId={}, itemCount={}", 
+                   userId, cart.getItems().size());
         
         return ResponseEntity.ok(cart);
     }
@@ -144,13 +152,14 @@ public class CartController {
         @ApiResponse(responseCode = "404", description = "購物車不存在")
     })
     @DeleteMapping
-    public ResponseEntity<Void> clearCart(
-            @Parameter(description = "客戶ID", required = true) @RequestParam String customerId) {
-        logger.info("清空購物車請求: customerId={}", customerId);
+    public ResponseEntity<Void> clearCart(HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("userId");
         
-        cartService.clearCart(customerId);
+        logger.info("清空購物車請求: userId={}", userId);
         
-        logger.info("成功清空購物車: customerId={}", customerId);
+        cartService.clearCart(userId);
+        
+        logger.info("成功清空購物車: userId={}", userId);
         
         return ResponseEntity.noContent().build();
     }
@@ -166,13 +175,14 @@ public class CartController {
         @ApiResponse(responseCode = "400", description = "請求參數無效")
     })
     @GetMapping("/exists")
-    public ResponseEntity<Boolean> cartExists(
-            @Parameter(description = "客戶ID", required = true) @RequestParam String customerId) {
-        logger.info("檢查購物車是否存在請求: customerId={}", customerId);
+    public ResponseEntity<Boolean> cartExists(HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("userId");
         
-        boolean exists = cartService.cartExists(customerId);
+        logger.info("檢查購物車是否存在請求: userId={}", userId);
         
-        logger.info("購物車存在檢查結果: customerId={}, exists={}", customerId, exists);
+        boolean exists = cartService.cartExists(userId);
+        
+        logger.info("購物車存在檢查結果: userId={}, exists={}", userId, exists);
         
         return ResponseEntity.ok(exists);
     }

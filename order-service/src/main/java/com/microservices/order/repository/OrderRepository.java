@@ -25,14 +25,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByOrderNumber(String orderNumber);
     
     /**
-     * 根據客戶ID查找訂單（分頁）
+     * 根據用戶ID查找訂單（分頁）
      */
-    Page<Order> findByCustomerId(String customerId, Pageable pageable);
+    Page<Order> findByUserId(Long userId, Pageable pageable);
     
     /**
-     * 根據客戶ID和狀態查找訂單
+     * 根據用戶ID和狀態查找訂單
      */
-    List<Order> findByCustomerIdAndStatus(String customerId, OrderStatus status);
+    List<Order> findByUserIdAndStatus(Long userId, OrderStatus status);
     
     /**
      * 根據狀態查找訂單

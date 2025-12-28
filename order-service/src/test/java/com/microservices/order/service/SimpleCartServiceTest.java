@@ -59,7 +59,7 @@ class SimpleCartServiceTest {
         InventoryServiceClient.ReservationDTO mockReservation = new InventoryServiceClient.ReservationDTO();
         mockReservation.setId(1L);
         mockReservation.setProductId(1L);
-        mockReservation.setCustomerId("customer1");
+        mockReservation.setUserId("customer1");
         mockReservation.setQuantity(2);
         mockReservation.setType("TEMPORARY");
         when(inventoryServiceClient.reserveInventory(anyLong(), any())).thenReturn(mockReservation);
@@ -72,7 +72,7 @@ class SimpleCartServiceTest {
         
         // 驗證結果
         assertThat(result).isNotNull();
-        assertThat(result.getCustomerId()).isEqualTo("customer1");
+        assertThat(result.getUserId()).isEqualTo("customer1");
         assertThat(result.getItems()).hasSize(1);
         assertThat(result.getItems().get(0).getProductId()).isEqualTo(1L);
         assertThat(result.getItems().get(0).getQuantity()).isEqualTo(2);

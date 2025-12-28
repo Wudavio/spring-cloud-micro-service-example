@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: auth-service
+  config:
+    import: "optional:configserver:http://config-server:8888"
+  cloud:
+    config:
+      enabled: true
+      uri: http://config-server:8888
+      fail-fast: false
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 2000
+        multiplier: 1.1
+  
+  # 資料庫配置
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/auth_db}
+    username: ${SPRING_DATASOURCE_USERNAME:auth_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:auth_pass}
+    driver-class-name: org.postgresql.Driver
+      
+  # JPA 配置
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: 8084
+
+# Eureka 客戶端配置
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://localhost:8761/eureka/}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+
+# JWT 配置
+jwt:
+  secret: ${JWT_SECRET:myVerySecretKeyForJWTTokenGeneration123456789}
+  expiration: ${JWT_EXPIRATION:86400000} # 24小時
+
+# Logging 配置
+logging:
+  level:
+    com.microservices.auth: INFO
+    org.springframework.security: INFO
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

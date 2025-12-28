@@ -13,8 +13,8 @@ import java.time.LocalDateTime;
  */
 public class ReserveInventoryRequest {
     
-    @NotBlank(message = "客戶ID不能為空")
-    private String customerId;
+    @NotNull(message = "用戶ID不能為空")
+    private Long userId;
     
     @NotNull(message = "預留數量不能為空")
     @Min(value = 1, message = "預留數量必須大於0")
@@ -27,19 +27,19 @@ public class ReserveInventoryRequest {
     public ReserveInventoryRequest() {}
     
     // 建構子
-    public ReserveInventoryRequest(String customerId, Integer quantity, LocalDateTime expiresAt) {
-        this.customerId = customerId;
+    public ReserveInventoryRequest(Long userId, Integer quantity, LocalDateTime expiresAt) {
+        this.userId = userId;
         this.quantity = quantity;
         this.expiresAt = expiresAt;
     }
     
     // Getters and Setters
-    public String getCustomerId() {
-        return customerId;
+    public Long getUserId() {
+        return userId;
     }
     
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
     
     public Integer getQuantity() {

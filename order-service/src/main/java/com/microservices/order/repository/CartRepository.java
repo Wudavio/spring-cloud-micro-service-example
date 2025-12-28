@@ -15,23 +15,23 @@ import java.util.Optional;
 public interface CartRepository extends JpaRepository<Cart, Long> {
     
     /**
-     * 根據客戶ID查找購物車
+     * 根據用戶ID查找購物車
      */
-    Optional<Cart> findByCustomerId(String customerId);
+    Optional<Cart> findByUserId(Long userId);
     
     /**
-     * 根據客戶ID刪除購物車
+     * 根據用戶ID刪除購物車
      */
-    void deleteByCustomerId(String customerId);
+    void deleteByUserId(Long userId);
     
     /**
-     * 檢查客戶是否有購物車
+     * 檢查用戶是否有購物車
      */
-    boolean existsByCustomerId(String customerId);
+    boolean existsByUserId(Long userId);
     
     /**
      * 查找購物車及其項目
      */
-    @Query("SELECT c FROM Cart c LEFT JOIN FETCH c.items WHERE c.customerId = :customerId")
-    Optional<Cart> findByCustomerIdWithItems(@Param("customerId") String customerId);
+    @Query("SELECT c FROM Cart c LEFT JOIN FETCH c.items WHERE c.userId = :userId")
+    Optional<Cart> findByUserIdWithItems(@Param("userId") Long userId);
 }
