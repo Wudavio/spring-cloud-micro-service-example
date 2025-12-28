@@ -1,5 +1,6 @@
 package com.microservices.order.service;
 
+import com.microservices.order.TestOrderServiceApplication;
 import com.microservices.order.client.InventoryServiceClient;
 import com.microservices.order.client.ProductServiceClient;
 import com.microservices.order.dto.CartDTO;
@@ -9,15 +10,13 @@ import com.microservices.order.entity.CartItem;
 import com.microservices.order.repository.CartRepository;
 import com.microservices.order.repository.CartItemRepository;
 import net.jqwik.api.*;
-import net.jqwik.api.constraints.AlphaChars;
-import net.jqwik.api.constraints.IntRange;
-import net.jqwik.api.constraints.StringLength;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
+
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -32,9 +31,8 @@ import static org.mockito.Mockito.when;
  * Feature: microservices-order-inventory, Property 4: 購物車查詢完整性
  * 驗證需求: 需求 1.6
  */
-@SpringBootTest
+@SpringBootTest(classes = TestOrderServiceApplication.class)
 @ActiveProfiles("test")
-@Transactional
 class CartQueryIntegrityPropertyTest {
     
     @Autowired
@@ -65,11 +63,16 @@ class CartQueryIntegrityPropertyTest {
     /**
      * 屬性 4: 購物車查詢完整性 - 查詢結果應該包含所有必要欄位
      */
-    @Property(tries = 100)
-    @Label("購物車查詢完整性 - 查詢結果應該包含所有必要欄位")
-    void cartQueryShouldContainAllRequiredFields(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 5) Integer itemCount) {
+    @Test
+    void cartQueryShouldContainAllRequiredFields() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 5);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 100; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建購物車和項目
         Cart cart = setupCartWithMultipleItems(customerId, itemCount);
@@ -113,15 +116,25 @@ class CartQueryIntegrityPropertyTest {
             .map(CartItemDTO::getTotalPrice)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
         assertThat(result.getTotalAmount()).isEqualByComparingTo(expectedTotalAmount);
+        
+        // 清理數據和 Mock
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 4: 購物車查詢完整性 - 空購物車查詢應該返回有效的空結果
      */
-    @Property(tries = 100)
-    @Label("購物車查詢完整性 - 空購物車查詢應該返回有效的空結果")
-    void emptyCartQueryShouldReturnValidEmptyResult(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId) {
+    @Test
+    void emptyCartQueryShouldReturnValidEmptyResult() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 100; i++) {
+            String customerId = customerIdArb.sample();
         
         // 不創建任何購物車項目，直接查詢
         CartDTO result = cartService.getCart(customerId);
@@ -131,23 +144,36 @@ class CartQueryIntegrityPropertyTest {
         assertThat(result.getCustomerId()).isEqualTo(customerId);
         assertThat(result.getItems()).isNotNull().isEmpty();
         assertThat(result.getTotalAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        
+        // 清理數據和 Mock
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 4: 購物車查詢完整性 - 產品服務不可用時應該提供降級資訊
      */
-    @Property(tries = 50)
-    @Label("購物車查詢完整性 - 產品服務不可用時應該提供降級資訊")
-    void cartQueryShouldProvideGracefulDegradationWhenProductServiceUnavailable(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 3) Integer itemCount) {
+    @Test
+    void cartQueryShouldProvideGracefulDegradationWhenProductServiceUnavailable() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 3);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建購物車和項目
-        Cart cart = setupCartWithMultipleItems(customerId, itemCount);
+        setupCartWithMultipleItems(customerId, itemCount);
         
         // 模擬產品服務不可用
         when(productServiceClient.getProduct(anyLong()))
-            .thenThrow(new RuntimeException("Product service unavailable"));
+            .thenThrow(new feign.FeignException.InternalServerError("Product service unavailable", 
+                feign.Request.create(feign.Request.HttpMethod.GET, "/products/1", 
+                    java.util.Collections.emptyMap(), null, java.nio.charset.StandardCharsets.UTF_8), null, null));
         
         // 執行查詢
         CartDTO result = cartService.getCart(customerId);
@@ -169,16 +195,27 @@ class CartQueryIntegrityPropertyTest {
         
         // 驗證總金額計算仍然正確
         assertThat(result.getTotalAmount()).isNotNull().isPositive();
+        
+        // 清理數據和 Mock
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 4: 購物車查詢完整性 - 查詢結果應該與資料庫狀態一致
      */
-    @Property(tries = 100)
-    @Label("購物車查詢完整性 - 查詢結果應該與資料庫狀態一致")
-    void cartQueryShouldBeConsistentWithDatabaseState(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 5) Integer itemCount) {
+    @Test
+    void cartQueryShouldBeConsistentWithDatabaseState() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 5);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 100; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建購物車和項目
         Cart cart = setupCartWithMultipleItems(customerId, itemCount);
@@ -198,9 +235,9 @@ class CartQueryIntegrityPropertyTest {
         assertThat(result.getItems()).hasSize(dbCart.getItems().size());
         
         // 驗證每個項目的一致性
-        for (int i = 0; i < result.getItems().size(); i++) {
-            CartItemDTO resultItem = result.getItems().get(i);
-            CartItem dbItem = dbCart.getItems().get(i);
+        for (int j = 0; j < result.getItems().size(); j++) {
+            CartItemDTO resultItem = result.getItems().get(j);
+            CartItem dbItem = dbCart.getItems().get(j);
             
             assertThat(resultItem.getId()).isEqualTo(dbItem.getId());
             assertThat(resultItem.getProductId()).isEqualTo(dbItem.getProductId());
@@ -208,22 +245,33 @@ class CartQueryIntegrityPropertyTest {
             assertThat(resultItem.getUnitPrice()).isEqualByComparingTo(dbItem.getUnitPrice());
             assertThat(resultItem.getTotalPrice()).isEqualByComparingTo(dbItem.getTotalPrice());
         }
+        
+        // 清理數據和 Mock
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 4: 購物車查詢完整性 - 多次查詢應該返回一致的結果
      */
-    @Property(tries = 50)
-    @Label("購物車查詢完整性 - 多次查詢應該返回一致的結果")
-    void multipleCartQueriesShouldReturnConsistentResults(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 3) Integer itemCount) {
+    @Test
+    void multipleCartQueriesShouldReturnConsistentResults() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 3);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建購物車和項目
-        Cart cart = setupCartWithMultipleItems(customerId, itemCount);
+        setupCartWithMultipleItems(customerId, itemCount);
         
         // 模擬產品服務調用
-        mockProductServiceForAllItems(cart.getItems());
+        mockProductServiceForAllItems(cartRepository.findByCustomerIdWithItems(customerId).orElseThrow().getItems());
         
         // 執行多次查詢
         CartDTO result1 = cartService.getCart(customerId);
@@ -237,15 +285,21 @@ class CartQueryIntegrityPropertyTest {
         assertThat(result1.getTotalAmount()).isEqualByComparingTo(result2.getTotalAmount()).isEqualByComparingTo(result3.getTotalAmount());
         
         // 驗證項目詳細資訊一致
-        for (int i = 0; i < result1.getItems().size(); i++) {
-            CartItemDTO item1 = result1.getItems().get(i);
-            CartItemDTO item2 = result2.getItems().get(i);
-            CartItemDTO item3 = result3.getItems().get(i);
+        for (int j = 0; j < result1.getItems().size(); j++) {
+            CartItemDTO item1 = result1.getItems().get(j);
+            CartItemDTO item2 = result2.getItems().get(j);
+            CartItemDTO item3 = result3.getItems().get(j);
             
             assertThat(item1.getId()).isEqualTo(item2.getId()).isEqualTo(item3.getId());
             assertThat(item1.getProductId()).isEqualTo(item2.getProductId()).isEqualTo(item3.getProductId());
             assertThat(item1.getQuantity()).isEqualTo(item2.getQuantity()).isEqualTo(item3.getQuantity());
             assertThat(item1.getUnitPrice()).isEqualByComparingTo(item2.getUnitPrice()).isEqualByComparingTo(item3.getUnitPrice());
+        }
+        
+        // 清理數據和 Mock
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
         }
     }
     

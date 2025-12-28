@@ -1,5 +1,6 @@
 package com.microservices.order.service;
 
+import com.microservices.order.TestOrderServiceApplication;
 import com.microservices.order.client.InventoryServiceClient;
 import com.microservices.order.client.ProductServiceClient;
 import com.microservices.order.dto.OrderDTO;
@@ -8,16 +9,14 @@ import com.microservices.order.entity.OrderItem;
 import com.microservices.order.entity.OrderStatus;
 import com.microservices.order.repository.OrderRepository;
 import net.jqwik.api.*;
-import net.jqwik.api.constraints.AlphaChars;
-import net.jqwik.api.constraints.IntRange;
-import net.jqwik.api.constraints.StringLength;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
+
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -36,9 +35,8 @@ import static org.mockito.Mockito.*;
  * Feature: microservices-order-inventory, Property 7: 訂單取消補償
  * 驗證需求: 需求 1.10
  */
-@SpringBootTest
+@SpringBootTest(classes = TestOrderServiceApplication.class)
 @ActiveProfiles("test")
-@Transactional
 class OrderCancellationCompensationPropertyTest {
     
     @Autowired
@@ -65,11 +63,16 @@ class OrderCancellationCompensationPropertyTest {
     /**
      * 屬性 7: 訂單取消補償 - 取消訂單應該釋放所有相關的庫存預留
      */
-    @Property(tries = 100)
-    @Label("訂單取消補償 - 取消訂單應該釋放所有相關的庫存預留")
-    void cancellingOrderShouldReleaseAllInventoryReservations(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 5) Integer itemCount) {
+    @Test
+    void cancellingOrderShouldReleaseAllInventoryReservations() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 5);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 100; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建可取消狀態的訂單
         Order order = setupOrderWithMultipleItems(customerId, itemCount, OrderStatus.PENDING);
@@ -101,26 +104,36 @@ class OrderCancellationCompensationPropertyTest {
         List<InventoryServiceClient.ReleaseInventoryRequest> capturedRequests = requestCaptor.getAllValues();
         
         // 驗證每個項目的釋放請求
-        for (int i = 0; i < itemCount; i++) {
-            OrderItem orderItem = order.getItems().get(i);
-            Long capturedProductId = capturedProductIds.get(i);
-            InventoryServiceClient.ReleaseInventoryRequest capturedRequest = capturedRequests.get(i);
+        for (int j = 0; j < itemCount; j++) {
+            OrderItem orderItem = order.getItems().get(j);
+            Long capturedProductId = capturedProductIds.get(j);
+            InventoryServiceClient.ReleaseInventoryRequest capturedRequest = capturedRequests.get(j);
             
             assertThat(capturedProductId).isEqualTo(orderItem.getProductId());
             assertThat(capturedRequest.getCustomerId()).isEqualTo(customerId);
             assertThat(capturedRequest.getQuantity()).isEqualTo(orderItem.getQuantity());
             assertThat(capturedRequest.getType()).isEqualTo("CONFIRMED");
         }
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 7: 訂單取消補償 - 不可取消狀態的訂單應該拋出異常
      */
-    @Property(tries = 50)
-    @Label("訂單取消補償 - 不可取消狀態的訂單應該拋出異常")
-    void nonCancellableOrdersShouldThrowException(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 3) Integer itemCount) {
+    @Test
+    void nonCancellableOrdersShouldThrowException() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 3);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建不可取消狀態的訂單（已發貨）
         Order order = setupOrderWithMultipleItems(customerId, itemCount, OrderStatus.SHIPPED);
@@ -136,16 +149,26 @@ class OrderCancellationCompensationPropertyTest {
         // 驗證訂單狀態沒有改變
         Order unchangedOrder = orderRepository.findById(order.getId()).orElseThrow();
         assertThat(unchangedOrder.getStatus()).isEqualTo(OrderStatus.SHIPPED);
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 7: 訂單取消補償 - 已取消的訂單再次取消應該拋出異常
      */
-    @Property(tries = 50)
-    @Label("訂單取消補償 - 已取消的訂單再次取消應該拋出異常")
-    void alreadyCancelledOrdersShouldThrowException(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 3) Integer itemCount) {
+    @Test
+    void alreadyCancelledOrdersShouldThrowException() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 3);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建已取消的訂單
         Order order = setupOrderWithMultipleItems(customerId, itemCount, OrderStatus.CANCELLED);
@@ -157,16 +180,26 @@ class OrderCancellationCompensationPropertyTest {
         
         // 驗證沒有調用庫存釋放
         verify(inventoryServiceClient, never()).releaseInventory(anyLong(), any());
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 7: 訂單取消補償 - 庫存釋放失敗不應該阻止訂單取消
      */
-    @Property(tries = 50)
-    @Label("訂單取消補償 - 庫存釋放失敗不應該阻止訂單取消")
-    void inventoryReleaseFailureShouldNotPreventOrderCancellation(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 3) Integer itemCount) {
+    @Test
+    void inventoryReleaseFailureShouldNotPreventOrderCancellation() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 3);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建可取消狀態的訂單
         Order order = setupOrderWithMultipleItems(customerId, itemCount, OrderStatus.CONFIRMED);
@@ -186,15 +219,24 @@ class OrderCancellationCompensationPropertyTest {
         
         // 驗證嘗試了庫存釋放
         verify(inventoryServiceClient, times(itemCount)).releaseInventory(anyLong(), any());
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 7: 訂單取消補償 - 部分庫存釋放失敗應該繼續處理其他項目
      */
-    @Property(tries = 50)
-    @Label("訂單取消補償 - 部分庫存釋放失敗應該繼續處理其他項目")
-    void partialInventoryReleaseFailureShouldContinueProcessingOtherItems(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId) {
+    @Test
+    void partialInventoryReleaseFailureShouldContinueProcessingOtherItems() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
         
         // 創建包含3個項目的訂單
         Order order = setupOrderWithMultipleItems(customerId, 3, OrderStatus.PENDING);
@@ -218,16 +260,26 @@ class OrderCancellationCompensationPropertyTest {
         verify(inventoryServiceClient).releaseInventory(eq(1L), any());
         verify(inventoryServiceClient).releaseInventory(eq(2L), any());
         verify(inventoryServiceClient).releaseInventory(eq(3L), any());
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 7: 訂單取消補償 - 取消操作應該是冪等的
      */
-    @Property(tries = 50)
-    @Label("訂單取消補償 - 取消操作的結果應該是一致的")
-    void orderCancellationResultShouldBeConsistent(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 3) Integer itemCount) {
+    @Test
+    void orderCancellationResultShouldBeConsistent() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 3);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建可取消狀態的訂單
         Order order = setupOrderWithMultipleItems(customerId, itemCount, OrderStatus.PENDING);
@@ -252,16 +304,26 @@ class OrderCancellationCompensationPropertyTest {
         // 驗證資料庫中的訂單狀態也已更新
         Order updatedOrder = orderRepository.findById(order.getId()).orElseThrow();
         assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 7: 訂單取消補償 - 取消操作應該保持訂單的其他資訊不變
      */
-    @Property(tries = 100)
-    @Label("訂單取消補償 - 取消操作應該保持訂單的其他資訊不變")
-    void orderCancellationShouldPreserveOtherOrderInformation(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 5) Integer itemCount) {
+    @Test
+    void orderCancellationShouldPreserveOtherOrderInformation() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 5);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 100; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建可取消狀態的訂單
         Order originalOrder = setupOrderWithMultipleItems(customerId, itemCount, OrderStatus.CONFIRMED);
@@ -294,6 +356,11 @@ class OrderCancellationCompensationPropertyTest {
         
         // 驗證更新時間已改變
         assertThat(result.getUpdatedAt()).isAfter(originalCreatedAt);
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**

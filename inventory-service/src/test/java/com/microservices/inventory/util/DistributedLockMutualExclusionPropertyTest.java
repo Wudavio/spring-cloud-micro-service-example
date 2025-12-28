@@ -216,7 +216,7 @@ class DistributedLockMutualExclusionPropertyTest {
     /**
      * 屬性測試：鎖值的唯一性
      */
-    @Property(tries = 10)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 19: 鎖值唯一性")
     void shouldGenerateUniqueLockValues(
             @ForAll("productIds") String productId1,

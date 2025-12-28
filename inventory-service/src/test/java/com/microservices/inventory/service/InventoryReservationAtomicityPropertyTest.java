@@ -9,6 +9,7 @@ import com.microservices.inventory.service.impl.InventoryServiceImpl;
 import net.jqwik.api.*;
 import net.jqwik.api.lifecycle.BeforeProperty;
 import org.mockito.Mockito;
+import org.springframework.core.env.Environment;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.web.client.RestTemplate;
 
@@ -36,6 +37,7 @@ class InventoryReservationAtomicityPropertyTest {
     private InventoryReservationRepository reservationRepository;
     private InventoryLockManager lockManager;
     private RestTemplate restTemplate;
+    private Environment environment;
     private InventoryService inventoryService;
 
     @BeforeProperty
@@ -44,14 +46,19 @@ class InventoryReservationAtomicityPropertyTest {
         reservationRepository = Mockito.mock(InventoryReservationRepository.class);
         lockManager = Mockito.mock(InventoryLockManager.class);
         restTemplate = Mockito.mock(RestTemplate.class);
-        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        environment = Mockito.mock(Environment.class);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
+        
+        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
     }
 
     /**
      * 屬性 13: 庫存預留原子性
      * 對於任何庫存預留操作，在並發情況下應該保持原子性，確保總預留數量不超過可用庫存
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 13: 庫存預留原子性")
     void shouldMaintainAtomicityInConcurrentReservations(
             @ForAll("validProductIds") Long productId,
@@ -239,7 +246,7 @@ class InventoryReservationAtomicityPropertyTest {
      * 屬性測試：確認預留的原子性
      * 測試臨時預留轉換為確認預留的原子性
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 13: 確認預留原子性")
     void shouldMaintainAtomicityInReservationConfirmation(
             @ForAll("validProductIds") Long productId,

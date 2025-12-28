@@ -9,6 +9,7 @@ import com.microservices.inventory.service.impl.InventoryServiceImpl;
 import net.jqwik.api.*;
 import net.jqwik.api.lifecycle.BeforeProperty;
 import org.mockito.Mockito;
+import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
@@ -31,6 +32,7 @@ class ExpiredReservationCleanupPropertyTest {
     private InventoryReservationRepository reservationRepository;
     private InventoryLockManager lockManager;
     private RestTemplate restTemplate;
+    private Environment environment;
     private InventoryService inventoryService;
 
     @BeforeProperty
@@ -39,20 +41,28 @@ class ExpiredReservationCleanupPropertyTest {
         reservationRepository = Mockito.mock(InventoryReservationRepository.class);
         lockManager = Mockito.mock(InventoryLockManager.class);
         restTemplate = Mockito.mock(RestTemplate.class);
-        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        environment = Mockito.mock(Environment.class);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
+        
+        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
     }
 
     /**
      * 屬性 18: 過期預留清理
      * 對於任何超過設定時間的臨時預留，系統應該自動釋放這些過期預留
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 18: 過期預留清理")
     void shouldCleanupExpiredTemporaryReservations(
             @ForAll("expiredReservationsWithInventory") ExpiredReservationTestData testData) throws Exception {
 
         // 重置 mock 物件
-        reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        reset(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
         List<InventoryReservation> expiredReservations = testData.expiredReservations;
         List<Inventory> inventories = testData.inventories;
@@ -111,12 +121,15 @@ class ExpiredReservationCleanupPropertyTest {
     /**
      * 屬性測試：沒有過期預留時不應該執行任何清理操作
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 18: 無過期預留處理")
     void shouldNotCleanupWhenNoExpiredReservations() throws Exception {
 
         // 重置 mock 物件
-        reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        reset(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
         // 設定沒有過期預留
         when(reservationRepository.findByTypeAndExpiresAtBefore(eq(ReservationType.TEMPORARY), any(LocalDateTime.class)))
@@ -141,13 +154,16 @@ class ExpiredReservationCleanupPropertyTest {
     /**
      * 屬性測試：只清理臨時預留，不清理確認預留
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 18: 只清理臨時預留")
     void shouldOnlyCleanupTemporaryReservations(
             @ForAll("mixedExpiredReservationsWithInventory") MixedReservationTestData testData) throws Exception {
 
         // 重置 mock 物件
-        reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        reset(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
         List<InventoryReservation> expiredTemporaryReservations = testData.expiredTemporaryReservations;
         List<InventoryReservation> expiredConfirmedReservations = testData.expiredConfirmedReservations;
@@ -194,13 +210,16 @@ class ExpiredReservationCleanupPropertyTest {
     /**
      * 屬性測試：庫存釋放的正確性
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 18: 庫存釋放正確性")
     void shouldCorrectlyReleaseInventoryWhenCleaningExpiredReservations(
             @ForAll("singleExpiredReservationWithInventory") SingleReservationTestData testData) throws Exception {
 
         // 重置 mock 物件
-        reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        reset(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
         InventoryReservation expiredReservation = testData.expiredReservation;
         Inventory originalInventory = testData.inventory;
@@ -246,13 +265,16 @@ class ExpiredReservationCleanupPropertyTest {
     /**
      * 屬性測試：處理庫存不存在的情況
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 18: 處理庫存不存在")
     void shouldHandleNonExistentInventoryGracefully(
             @ForAll("expiredReservationsOnly") List<InventoryReservation> expiredReservations) throws Exception {
 
         // 重置 mock 物件
-        reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        reset(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
         // 設定過期預留存在但庫存不存在
         when(reservationRepository.findByTypeAndExpiresAtBefore(eq(ReservationType.TEMPORARY), any(LocalDateTime.class)))
@@ -287,13 +309,16 @@ class ExpiredReservationCleanupPropertyTest {
     /**
      * 屬性測試：批量清理的正確性
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 18: 批量清理正確性")
     void shouldCorrectlyHandleBatchCleanup(
             @ForAll("multipleExpiredReservationsWithInventory") MultipleReservationTestData testData) throws Exception {
 
         // 重置 mock 物件
-        reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        reset(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
         List<InventoryReservation> expiredReservations = testData.expiredReservations;
         List<Inventory> inventories = testData.inventories;

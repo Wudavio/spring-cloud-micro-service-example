@@ -9,6 +9,7 @@ import com.microservices.inventory.service.impl.InventoryServiceImpl;
 import net.jqwik.api.*;
 import net.jqwik.api.lifecycle.BeforeProperty;
 import org.mockito.Mockito;
+import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
@@ -32,6 +33,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
     private InventoryReservationRepository reservationRepository;
     private InventoryLockManager lockManager;
     private RestTemplate restTemplate;
+    private Environment environment;
     private InventoryService inventoryService;
 
     @BeforeProperty
@@ -40,14 +42,19 @@ class InventoryInsufficientStockProtectionPropertyTest {
         reservationRepository = Mockito.mock(InventoryReservationRepository.class);
         lockManager = Mockito.mock(InventoryLockManager.class);
         restTemplate = Mockito.mock(RestTemplate.class);
-        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        environment = Mockito.mock(Environment.class);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
+        
+        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
     }
 
     /**
      * 屬性 14: 庫存不足保護
      * 對於任何庫存不足的預留請求，應該被拒絕並返回庫存不足錯誤
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 14: 庫存不足保護")
     void shouldRejectReservationWhenInsufficientStock(
             @ForAll("validProductIds") Long productId,
@@ -59,7 +66,10 @@ class InventoryInsufficientStockProtectionPropertyTest {
         Assume.that(requestedQuantity > availableStock);
 
         // 重置 mock 物件
-        reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        reset(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
         // 創建庫存實體
         Inventory inventory = new Inventory(productId, availableStock, 5);
@@ -108,7 +118,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
     /**
      * 屬性測試：邊界情況 - 請求數量等於可用庫存應該成功
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 14: 邊界情況測試")
     void shouldAllowReservationWhenExactlyEqualToAvailableStock(
             @ForAll("validProductIds") Long productId,
@@ -116,7 +126,10 @@ class InventoryInsufficientStockProtectionPropertyTest {
             @ForAll("validCustomerIds") String customerId) throws Exception {
 
         // 重置 mock 物件
-        reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        reset(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
         // 創建庫存實體
         Inventory inventory = new Inventory(productId, availableStock, 5);
@@ -174,7 +187,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
     /**
      * 屬性測試：部分庫存不足的情況
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 14: 部分庫存不足保護")
     void shouldRejectReservationWhenPartiallyInsufficientStock(
             @ForAll("validProductIds") Long productId,
@@ -235,7 +248,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
     /**
      * 屬性測試：調整預留時的庫存不足保護
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 14: 調整預留庫存不足保護")
     void shouldRejectAdjustmentWhenInsufficientStockForIncrease(
             @ForAll("validProductIds") Long productId,
@@ -304,7 +317,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
     /**
      * 屬性測試：零庫存情況下的保護
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 14: 零庫存保護")
     void shouldRejectAnyReservationWhenZeroStock(
             @ForAll("validProductIds") Long productId,

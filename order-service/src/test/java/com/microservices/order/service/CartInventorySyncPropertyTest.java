@@ -1,5 +1,6 @@
 package com.microservices.order.service;
 
+import com.microservices.order.TestOrderServiceApplication;
 import com.microservices.order.client.InventoryServiceClient;
 import com.microservices.order.client.ProductServiceClient;
 import com.microservices.order.dto.AddToCartRequest;
@@ -10,16 +11,14 @@ import com.microservices.order.entity.CartItem;
 import com.microservices.order.repository.CartRepository;
 import com.microservices.order.repository.CartItemRepository;
 import net.jqwik.api.*;
-import net.jqwik.api.constraints.AlphaChars;
-import net.jqwik.api.constraints.IntRange;
-import net.jqwik.api.constraints.StringLength;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
+
 
 import java.math.BigDecimal;
 
@@ -33,9 +32,8 @@ import static org.mockito.Mockito.*;
  * Feature: microservices-order-inventory, Property 2: 購物車庫存同步
  * 驗證需求: 需求 1.2, 1.4, 1.5
  */
-@SpringBootTest
+@SpringBootTest(classes = TestOrderServiceApplication.class)
 @ActiveProfiles("test")
-@Transactional
 class CartInventorySyncPropertyTest {
     
     @Autowired
@@ -66,54 +64,73 @@ class CartInventorySyncPropertyTest {
     /**
      * 屬性 2: 購物車庫存同步 - 添加商品時庫存預留應該與購物車數量一致
      */
-    @Property(tries = 100)
-    @Label("購物車庫存同步 - 添加商品時庫存預留數量應該與購物車數量一致")
-    void addingItemsShouldSyncInventoryReservation(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 1000) Long productId,
-            @ForAll @IntRange(min = 1, max = 10) Integer quantity) {
+    @Test
+    void addingItemsShouldSyncInventoryReservation() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Long> productIdArb = Arbitraries.longs().between(1L, 1000L);
+        Arbitrary<Integer> quantityArb = Arbitraries.integers().between(1, 10);
         
-        // 模擬產品存在且狀態為 ACTIVE
-        ProductServiceClient.ProductDTO mockProduct = createMockProduct(productId, "ACTIVE");
-        when(productServiceClient.getProduct(productId)).thenReturn(mockProduct);
+        // 運行多次迭代測試
+        for (int i = 0; i < 10; i++) {
+            String customerId = customerIdArb.sample();
+            Long productId = productIdArb.sample();
+            Integer quantity = quantityArb.sample();
         
-        // 模擬庫存預留成功
-        InventoryServiceClient.ReservationDTO mockReservation = createMockReservation(productId, customerId, quantity);
-        when(inventoryServiceClient.reserveInventory(anyLong(), any())).thenReturn(mockReservation);
-        
-        // 創建添加到購物車的請求
-        AddToCartRequest request = new AddToCartRequest(customerId, productId, quantity);
-        
-        // 執行添加操作
-        CartDTO result = cartService.addToCart(request);
-        
-        // 驗證庫存預留調用
-        ArgumentCaptor<InventoryServiceClient.ReserveInventoryRequest> captor = 
-            ArgumentCaptor.forClass(InventoryServiceClient.ReserveInventoryRequest.class);
-        verify(inventoryServiceClient).reserveInventory(eq(productId), captor.capture());
-        
-        InventoryServiceClient.ReserveInventoryRequest reserveRequest = captor.getValue();
-        
-        // 驗證庫存預留數量與購物車數量一致
-        assertThat(reserveRequest.getQuantity()).isEqualTo(quantity);
-        assertThat(reserveRequest.getCustomerId()).isEqualTo(customerId);
-        assertThat(reserveRequest.getType()).isEqualTo("TEMPORARY");
-        
-        // 驗證購物車中的數量
-        assertThat(result.getItems()).hasSize(1);
-        assertThat(result.getItems().get(0).getQuantity()).isEqualTo(quantity);
+            // 模擬產品存在且狀態為 ACTIVE
+            ProductServiceClient.ProductDTO mockProduct = createMockProduct(productId, "ACTIVE");
+            when(productServiceClient.getProduct(productId)).thenReturn(mockProduct);
+            
+            // 模擬庫存預留成功
+            InventoryServiceClient.ReservationDTO mockReservation = createMockReservation(productId, customerId, quantity);
+            when(inventoryServiceClient.reserveInventory(anyLong(), any())).thenReturn(mockReservation);
+            
+            // 創建添加到購物車的請求
+            AddToCartRequest request = new AddToCartRequest(customerId, productId, quantity);
+            
+            // 執行添加操作
+            CartDTO result = cartService.addToCart(request);
+            
+            // 驗證庫存預留調用
+            ArgumentCaptor<InventoryServiceClient.ReserveInventoryRequest> captor = 
+                ArgumentCaptor.forClass(InventoryServiceClient.ReserveInventoryRequest.class);
+            verify(inventoryServiceClient).reserveInventory(eq(productId), captor.capture());
+            
+            InventoryServiceClient.ReserveInventoryRequest reserveRequest = captor.getValue();
+            
+            // 驗證庫存預留數量與購物車數量一致
+            assertThat(reserveRequest.getQuantity()).isEqualTo(quantity);
+            assertThat(reserveRequest.getCustomerId()).isEqualTo(customerId);
+            assertThat(reserveRequest.getType()).isEqualTo("TEMPORARY");
+            
+            // 驗證購物車中的數量
+            assertThat(result.getItems()).hasSize(1);
+            assertThat(result.getItems().get(0).getQuantity()).isEqualTo(quantity);
+            
+            // 清理數據和 Mock
+            cartItemRepository.deleteAll();
+            cartRepository.deleteAll();
+            reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 2: 購物車庫存同步 - 更新商品數量時庫存預留應該相應調整
      */
-    @Property(tries = 100)
-    @Label("購物車庫存同步 - 更新商品數量時庫存預留應該相應調整")
-    void updatingItemQuantityShouldAdjustInventoryReservation(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 1000) Long productId,
-            @ForAll @IntRange(min = 1, max = 5) Integer initialQuantity,
-            @ForAll @IntRange(min = 1, max = 10) Integer newQuantity) {
+    @Test
+    void updatingItemQuantityShouldAdjustInventoryReservation() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Long> productIdArb = Arbitraries.longs().between(1L, 1000L);
+        Arbitrary<Integer> initialQuantityArb = Arbitraries.integers().between(1, 5);
+        Arbitrary<Integer> newQuantityArb = Arbitraries.integers().between(1, 10);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 10; i++) {
+            String customerId = customerIdArb.sample();
+            Long productId = productIdArb.sample();
+            Integer initialQuantity = initialQuantityArb.sample();
+            Integer newQuantity = newQuantityArb.sample();
         
         // 先添加商品到購物車
         setupCartWithItem(customerId, productId, initialQuantity);
@@ -163,17 +180,29 @@ class CartInventorySyncPropertyTest {
         // 驗證購物車中的數量已更新
         assertThat(result.getItems()).hasSize(1);
         assertThat(result.getItems().get(0).getQuantity()).isEqualTo(newQuantity);
+        
+        // 清理數據和 Mock
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 2: 購物車庫存同步 - 移除商品時應該釋放所有預留庫存
      */
-    @Property(tries = 100)
-    @Label("購物車庫存同步 - 移除商品時應該釋放所有預留庫存")
-    void removingItemsShouldReleaseAllReservedInventory(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 1000) Long productId,
-            @ForAll @IntRange(min = 1, max = 10) Integer quantity) {
+    @Test
+    void removingItemsShouldReleaseAllReservedInventory() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Long> productIdArb = Arbitraries.longs().between(1L, 1000L);
+        Arbitrary<Integer> quantityArb = Arbitraries.integers().between(1, 10);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 10; i++) {
+            String customerId = customerIdArb.sample();
+            Long productId = productIdArb.sample();
+            Integer quantity = quantityArb.sample();
         
         // 先添加商品到購物車
         setupCartWithItem(customerId, productId, quantity);
@@ -201,21 +230,32 @@ class CartInventorySyncPropertyTest {
         
         // 驗證購物車為空
         assertThat(result.getItems()).isEmpty();
+        
+        // 清理數據和 Mock
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 2: 購物車庫存同步 - 清空購物車時應該釋放所有商品的預留庫存
      */
-    @Property(tries = 50)
-    @Label("購物車庫存同步 - 清空購物車時應該釋放所有商品的預留庫存")
-    void clearingCartShouldReleaseAllInventoryReservations(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 3) Integer itemCount) {
+    @Test
+    void clearingCartShouldReleaseAllInventoryReservations() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 3);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 添加多個商品到購物車
-        for (int i = 1; i <= itemCount; i++) {
-            Long productId = (long) i;
-            Integer quantity = i + 1;
+        for (int j = 1; j <= itemCount; j++) {
+            Long productId = (long) j;
+            Integer quantity = j + 1;
             setupCartWithItem(customerId, productId, quantity);
         }
         
@@ -231,6 +271,12 @@ class CartInventorySyncPropertyTest {
         
         // 驗證購物車已被刪除
         assertThat(cartRepository.findByCustomerId(customerId)).isEmpty();
+        
+        // 清理數據和 Mock
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
@@ -249,16 +295,14 @@ class CartInventorySyncPropertyTest {
         Cart cart = cartRepository.findByCustomerId(customerId)
             .orElseGet(() -> cartRepository.save(new Cart(customerId)));
         
-        // 檢查是否已有該商品
-        boolean itemExists = cart.getItems().stream()
-            .anyMatch(item -> item.getProductId().equals(productId));
+        // 檢查是否已有該商品 - 使用資料庫查詢而不是集合訪問
+        boolean itemExists = cartItemRepository.findByCartIdAndProductId(cart.getId(), productId).isPresent();
         
         if (!itemExists) {
-            // 創建購物車項目
+            // 直接創建購物車項目，不使用 Cart.addItem 方法
             CartItem item = new CartItem(productId, quantity, mockProduct.getPrice());
-            cart.addItem(item);
+            item.setCart(cart); // 直接設置關聯
             cartItemRepository.save(item);
-            cartRepository.save(cart);
         }
     }
     

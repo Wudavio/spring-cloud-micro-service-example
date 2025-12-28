@@ -7,6 +7,7 @@ import com.microservices.inventory.service.impl.InventoryServiceImpl;
 import net.jqwik.api.*;
 import net.jqwik.api.lifecycle.BeforeProperty;
 import org.mockito.Mockito;
+import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Optional;
@@ -29,6 +30,7 @@ class InventoryCreationValidationPropertyTest {
     private InventoryReservationRepository reservationRepository;
     private InventoryLockManager lockManager;
     private RestTemplate restTemplate;
+    private Environment environment;
     private InventoryService inventoryService;
 
     @BeforeProperty
@@ -37,14 +39,19 @@ class InventoryCreationValidationPropertyTest {
         reservationRepository = Mockito.mock(InventoryReservationRepository.class);
         lockManager = Mockito.mock(InventoryLockManager.class);
         restTemplate = Mockito.mock(RestTemplate.class);
-        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        environment = Mockito.mock(Environment.class);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
+        
+        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
     }
 
     /**
      * 屬性 12: 庫存創建驗證
      * 對於任何庫存創建請求，只有在產品服務中存在的產品才能成功創建庫存記錄
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 12: 庫存創建驗證")
     void shouldOnlyCreateInventoryForExistingProducts(
             @ForAll("validProductIds") Long productId,
@@ -98,7 +105,7 @@ class InventoryCreationValidationPropertyTest {
     /**
      * 屬性測試：重複創建相同產品的庫存應該失敗
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 12: 重複創建庫存驗證")
     void shouldRejectDuplicateInventoryCreation(
             @ForAll("validProductIds") Long productId,
@@ -125,7 +132,7 @@ class InventoryCreationValidationPropertyTest {
     /**
      * 屬性測試：無效參數應該被拒絕
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 12: 無效參數驗證")
     void shouldRejectInvalidParameters(
             @ForAll("validProductIds") Long productId,

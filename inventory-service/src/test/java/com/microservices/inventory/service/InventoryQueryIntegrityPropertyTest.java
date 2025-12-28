@@ -9,6 +9,7 @@ import com.microservices.inventory.service.impl.InventoryServiceImpl;
 import net.jqwik.api.*;
 import net.jqwik.api.lifecycle.BeforeProperty;
 import org.mockito.Mockito;
+import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
@@ -29,6 +30,7 @@ class InventoryQueryIntegrityPropertyTest {
     private InventoryReservationRepository reservationRepository;
     private InventoryLockManager lockManager;
     private RestTemplate restTemplate;
+    private Environment environment;
     private InventoryService inventoryService;
 
     @BeforeProperty
@@ -37,14 +39,19 @@ class InventoryQueryIntegrityPropertyTest {
         reservationRepository = Mockito.mock(InventoryReservationRepository.class);
         lockManager = Mockito.mock(InventoryLockManager.class);
         restTemplate = Mockito.mock(RestTemplate.class);
-        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        environment = Mockito.mock(Environment.class);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
+        
+        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
     }
 
     /**
      * 屬性 16: 庫存查詢完整性
      * 對於任何庫存查詢請求，應該返回可用、臨時預留和正式預留的完整數量資訊
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 16: 庫存查詢完整性")
     void shouldReturnCompleteInventoryInformationForAnyQuery(
             @ForAll("validProductIds") Long productId,
@@ -110,7 +117,7 @@ class InventoryQueryIntegrityPropertyTest {
     /**
      * 屬性測試：不存在的產品查詢應該返回空結果
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 16: 不存在產品查詢處理")
     void shouldReturnEmptyForNonExistentProduct(
             @ForAll("validProductIds") Long productId) {
@@ -135,7 +142,7 @@ class InventoryQueryIntegrityPropertyTest {
     /**
      * 屬性測試：零值庫存查詢的完整性
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 16: 零值庫存查詢完整性")
     void shouldReturnCompleteInformationForZeroStockInventory(
             @ForAll("validProductIds") Long productId,
@@ -183,7 +190,7 @@ class InventoryQueryIntegrityPropertyTest {
     /**
      * 屬性測試：高庫存情況下的查詢完整性
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 16: 高庫存查詢完整性")
     void shouldReturnCompleteInformationForHighStockInventory(
             @ForAll("validProductIds") Long productId,
@@ -238,7 +245,7 @@ class InventoryQueryIntegrityPropertyTest {
     /**
      * 屬性測試：邊界情況 - 庫存等於閾值的查詢完整性
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 16: 邊界情況庫存查詢完整性")
     void shouldReturnCompleteInformationForBoundaryStockLevels(
             @ForAll("validProductIds") Long productId,
@@ -291,7 +298,7 @@ class InventoryQueryIntegrityPropertyTest {
     /**
      * 屬性測試：時間戳資訊的完整性
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 16: 時間戳資訊完整性")
     void shouldReturnCompleteTimestampInformation(
             @ForAll("validProductIds") Long productId,

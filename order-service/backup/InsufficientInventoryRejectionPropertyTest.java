@@ -1,5 +1,6 @@
 package com.microservices.order.service;
 
+import com.microservices.order.TestOrderServiceApplication;
 import com.microservices.order.client.InventoryServiceClient;
 import com.microservices.order.client.ProductServiceClient;
 import com.microservices.order.dto.AddToCartRequest;
@@ -8,15 +9,13 @@ import com.microservices.order.repository.CartRepository;
 import com.microservices.order.repository.CartItemRepository;
 import feign.FeignException;
 import net.jqwik.api.*;
-import net.jqwik.api.constraints.AlphaChars;
-import net.jqwik.api.constraints.IntRange;
-import net.jqwik.api.constraints.StringLength;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
+
 
 import java.math.BigDecimal;
 
@@ -32,9 +31,8 @@ import static org.mockito.Mockito.when;
  * Feature: microservices-order-inventory, Property 3: 庫存不足拒絕
  * 驗證需求: 需求 1.3
  */
-@SpringBootTest
+@SpringBootTest(classes = TestOrderServiceApplication.class)
 @ActiveProfiles("test")
-@Transactional
 class InsufficientInventoryRejectionPropertyTest {
     
     @Autowired
@@ -65,12 +63,18 @@ class InsufficientInventoryRejectionPropertyTest {
     /**
      * 屬性 3: 庫存不足拒絕 - 庫存不足的產品添加到購物車應該被拒絕
      */
-    @Property(tries = 100)
-    @Label("庫存不足拒絕 - 庫存不足的產品添加到購物車應該被拒絕")
-    void insufficientInventoryProductsShouldBeRejected(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 1000) Long productId,
-            @ForAll @IntRange(min = 1, max = 10) Integer requestedQuantity) {
+    @Test
+    void insufficientInventoryProductsShouldBeRejected() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Long> productIdArb = Arbitraries.longs().between(1L, 1000L);
+        Arbitrary<Integer> quantityArb = Arbitraries.integers().between(1, 10);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 100; i++) {
+            String customerId = customerIdArb.sample();
+            Long productId = productIdArb.sample();
+            Integer requestedQuantity = quantityArb.sample();
         
         // 模擬產品存在且狀態為 ACTIVE
         ProductServiceClient.ProductDTO mockProduct = createMockProduct(productId, "ACTIVE");
@@ -78,7 +82,9 @@ class InsufficientInventoryRejectionPropertyTest {
         
         // 模擬庫存不足（返回 400 錯誤）
         when(inventoryServiceClient.reserveInventory(anyLong(), any()))
-            .thenThrow(new FeignException.BadRequest("Insufficient inventory", null, null, null));
+            .thenThrow(new feign.FeignException.BadRequest("Insufficient inventory", 
+                feign.Request.create(feign.Request.HttpMethod.POST, "/inventory/reserve", 
+                    java.util.Collections.emptyMap(), null, java.nio.charset.StandardCharsets.UTF_8), null, null));
         
         // 創建添加到購物車的請求
         AddToCartRequest request = new AddToCartRequest(customerId, productId, requestedQuantity);
@@ -90,17 +96,29 @@ class InsufficientInventoryRejectionPropertyTest {
         
         // 驗證購物車沒有被創建或修改
         assertThat(cartRepository.findByCustomerId(customerId)).isEmpty();
+        
+        // 清理數據和 Mock
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 3: 庫存不足拒絕 - 庫存充足的產品應該能成功添加
      */
-    @Property(tries = 100)
-    @Label("庫存不足拒絕 - 庫存充足的產品應該能成功添加（對比測試）")
-    void sufficientInventoryProductsShouldBeAccepted(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 1000) Long productId,
-            @ForAll @IntRange(min = 1, max = 10) Integer requestedQuantity) {
+    @Test
+    void sufficientInventoryProductsShouldBeAccepted() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Long> productIdArb = Arbitraries.longs().between(1L, 1000L);
+        Arbitrary<Integer> quantityArb = Arbitraries.integers().between(1, 10);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 100; i++) {
+            String customerId = customerIdArb.sample();
+            Long productId = productIdArb.sample();
+            Integer requestedQuantity = quantityArb.sample();
         
         // 模擬產品存在且狀態為 ACTIVE
         ProductServiceClient.ProductDTO mockProduct = createMockProduct(productId, "ACTIVE");
@@ -122,17 +140,29 @@ class InsufficientInventoryRejectionPropertyTest {
                 assertThat(cart.getItems().get(0).getProductId()).isEqualTo(productId);
                 assertThat(cart.getItems().get(0).getQuantity()).isEqualTo(requestedQuantity);
             });
+        
+        // 清理數據和 Mock
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 3: 庫存不足拒絕 - 部分庫存不足時應該拒絕整個請求
      */
-    @Property(tries = 100)
-    @Label("庫存不足拒絕 - 部分庫存不足時應該拒絕整個請求")
-    void partialInsufficientInventoryShouldRejectEntireRequest(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 1000) Long productId,
-            @ForAll @IntRange(min = 5, max = 20) Integer requestedQuantity) {
+    @Test
+    void partialInsufficientInventoryShouldRejectEntireRequest() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Long> productIdArb = Arbitraries.longs().between(1L, 1000L);
+        Arbitrary<Integer> quantityArb = Arbitraries.integers().between(5, 20);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 100; i++) {
+            String customerId = customerIdArb.sample();
+            Long productId = productIdArb.sample();
+            Integer requestedQuantity = quantityArb.sample();
         
         // 模擬產品存在且狀態為 ACTIVE
         ProductServiceClient.ProductDTO mockProduct = createMockProduct(productId, "ACTIVE");
@@ -140,7 +170,9 @@ class InsufficientInventoryRejectionPropertyTest {
         
         // 模擬部分庫存不足（庫存服務返回錯誤）
         when(inventoryServiceClient.reserveInventory(anyLong(), any()))
-            .thenThrow(new FeignException.BadRequest("Requested quantity exceeds available inventory", null, null, null));
+            .thenThrow(new feign.FeignException.BadRequest("Requested quantity exceeds available inventory", 
+                feign.Request.create(feign.Request.HttpMethod.POST, "/inventory/reserve", 
+                    java.util.Collections.emptyMap(), null, java.nio.charset.StandardCharsets.UTF_8), null, null));
         
         // 創建添加到購物車的請求
         AddToCartRequest request = new AddToCartRequest(customerId, productId, requestedQuantity);
@@ -152,17 +184,29 @@ class InsufficientInventoryRejectionPropertyTest {
         
         // 驗證購物車沒有被創建
         assertThat(cartRepository.findByCustomerId(customerId)).isEmpty();
+        
+        // 清理數據和 Mock
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 3: 庫存不足拒絕 - 庫存服務不可用時應該拋出運行時異常
      */
-    @Property(tries = 50)
-    @Label("庫存不足拒絕 - 庫存服務不可用時應該拋出運行時異常")
-    void inventoryServiceUnavailableShouldThrowRuntimeException(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 1000) Long productId,
-            @ForAll @IntRange(min = 1, max = 10) Integer requestedQuantity) {
+    @Test
+    void inventoryServiceUnavailableShouldThrowRuntimeException() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Long> productIdArb = Arbitraries.longs().between(1L, 1000L);
+        Arbitrary<Integer> quantityArb = Arbitraries.integers().between(1, 10);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Long productId = productIdArb.sample();
+            Integer requestedQuantity = quantityArb.sample();
         
         // 模擬產品存在且狀態為 ACTIVE
         ProductServiceClient.ProductDTO mockProduct = createMockProduct(productId, "ACTIVE");
@@ -170,7 +214,9 @@ class InsufficientInventoryRejectionPropertyTest {
         
         // 模擬庫存服務不可用（返回 500 錯誤）
         when(inventoryServiceClient.reserveInventory(anyLong(), any()))
-            .thenThrow(new FeignException.InternalServerError("Service unavailable", null, null, null));
+            .thenThrow(new feign.FeignException.InternalServerError("Service unavailable", 
+                feign.Request.create(feign.Request.HttpMethod.POST, "/inventory/reserve", 
+                    java.util.Collections.emptyMap(), null, java.nio.charset.StandardCharsets.UTF_8), null, null));
         
         // 創建添加到購物車的請求
         AddToCartRequest request = new AddToCartRequest(customerId, productId, requestedQuantity);
@@ -182,17 +228,29 @@ class InsufficientInventoryRejectionPropertyTest {
         
         // 驗證購物車沒有被創建
         assertThat(cartRepository.findByCustomerId(customerId)).isEmpty();
+        
+        // 清理數據和 Mock
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 3: 庫存不足拒絕 - 網路超時時應該拋出運行時異常
      */
-    @Property(tries = 50)
-    @Label("庫存不足拒絕 - 網路超時時應該拋出運行時異常")
-    void networkTimeoutShouldThrowRuntimeException(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 1000) Long productId,
-            @ForAll @IntRange(min = 1, max = 10) Integer requestedQuantity) {
+    @Test
+    void networkTimeoutShouldThrowRuntimeException() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Long> productIdArb = Arbitraries.longs().between(1L, 1000L);
+        Arbitrary<Integer> quantityArb = Arbitraries.integers().between(1, 10);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Long productId = productIdArb.sample();
+            Integer requestedQuantity = quantityArb.sample();
         
         // 模擬產品存在且狀態為 ACTIVE
         ProductServiceClient.ProductDTO mockProduct = createMockProduct(productId, "ACTIVE");
@@ -200,7 +258,9 @@ class InsufficientInventoryRejectionPropertyTest {
         
         // 模擬網路超時
         when(inventoryServiceClient.reserveInventory(anyLong(), any()))
-            .thenThrow(new FeignException.GatewayTimeout("Request timeout", null, null, null));
+            .thenThrow(new feign.FeignException.GatewayTimeout("Request timeout", 
+                feign.Request.create(feign.Request.HttpMethod.POST, "/inventory/reserve", 
+                    java.util.Collections.emptyMap(), null, java.nio.charset.StandardCharsets.UTF_8), null, null));
         
         // 創建添加到購物車的請求
         AddToCartRequest request = new AddToCartRequest(customerId, productId, requestedQuantity);
@@ -212,6 +272,12 @@ class InsufficientInventoryRejectionPropertyTest {
         
         // 驗證購物車沒有被創建
         assertThat(cartRepository.findByCustomerId(customerId)).isEmpty();
+        
+        // 清理數據和 Mock
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**

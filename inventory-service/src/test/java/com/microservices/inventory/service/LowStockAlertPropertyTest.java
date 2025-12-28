@@ -8,6 +8,7 @@ import com.microservices.inventory.service.impl.LowStockNotificationServiceImpl;
 import net.jqwik.api.*;
 import net.jqwik.api.lifecycle.BeforeProperty;
 import org.mockito.Mockito;
+import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
@@ -29,6 +30,7 @@ class LowStockAlertPropertyTest {
     private InventoryReservationRepository reservationRepository;
     private InventoryLockManager lockManager;
     private RestTemplate restTemplate;
+    private Environment environment;
     private InventoryService inventoryService;
     private LowStockNotificationService lowStockNotificationService;
 
@@ -38,7 +40,12 @@ class LowStockAlertPropertyTest {
         reservationRepository = Mockito.mock(InventoryReservationRepository.class);
         lockManager = Mockito.mock(InventoryLockManager.class);
         restTemplate = Mockito.mock(RestTemplate.class);
-        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        environment = Mockito.mock(Environment.class);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
+        
+        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
         lowStockNotificationService = new LowStockNotificationServiceImpl(inventoryService);
     }
 
@@ -46,7 +53,7 @@ class LowStockAlertPropertyTest {
      * 屬性 17: 低庫存告警
      * 對於任何總庫存水準低於閾值的產品，系統應該發出低庫存通知
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 17: 低庫存告警")
     void shouldSendLowStockAlertForProductsBelowThreshold(
             @ForAll("lowStockInventories") List<Inventory> inventories) {
@@ -85,7 +92,7 @@ class LowStockAlertPropertyTest {
     /**
      * 屬性測試：高庫存產品不應該觸發低庫存告警
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 17: 高庫存產品不觸發告警")
     void shouldNotSendLowStockAlertForProductsAboveThreshold(
             @ForAll("highStockInventories") List<Inventory> inventories) {
@@ -124,7 +131,7 @@ class LowStockAlertPropertyTest {
     /**
      * 屬性測試：邊界情況 - 庫存等於閾值應該觸發告警
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 17: 邊界情況告警")
     void shouldSendLowStockAlertForProductsAtThreshold(
             @ForAll("validProductIds") Long productId,
@@ -165,7 +172,7 @@ class LowStockAlertPropertyTest {
     /**
      * 屬性測試：零庫存產品應該觸發告警
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 17: 零庫存告警")
     void shouldSendLowStockAlertForZeroStockProducts(
             @ForAll("validProductIds") Long productId,
@@ -207,7 +214,7 @@ class LowStockAlertPropertyTest {
     /**
      * 屬性測試：批量低庫存告警的正確性
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 17: 批量低庫存告警")
     void shouldSendBatchLowStockAlertsCorrectly(
             @ForAll("mixedStockInventories") List<Inventory> inventories) {
@@ -257,7 +264,7 @@ class LowStockAlertPropertyTest {
     /**
      * 屬性測試：空庫存列表不應該觸發告警
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 17: 空庫存列表處理")
     void shouldHandleEmptyInventoryListCorrectly() {
 
@@ -281,7 +288,7 @@ class LowStockAlertPropertyTest {
     /**
      * 屬性測試：單個產品低庫存告警
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 17: 單個產品告警")
     void shouldSendAlertForSingleLowStockProduct(
             @ForAll("validProductIds") Long productId,

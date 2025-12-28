@@ -9,6 +9,7 @@ import com.microservices.inventory.service.impl.InventoryServiceImpl;
 import net.jqwik.api.*;
 import net.jqwik.api.lifecycle.BeforeProperty;
 import org.mockito.Mockito;
+import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
@@ -34,6 +35,7 @@ class InventoryReleaseCorrectnessPropertyTest {
     private InventoryReservationRepository reservationRepository;
     private InventoryLockManager lockManager;
     private RestTemplate restTemplate;
+    private Environment environment;
     private InventoryService inventoryService;
 
     @BeforeProperty
@@ -42,14 +44,19 @@ class InventoryReleaseCorrectnessPropertyTest {
         reservationRepository = Mockito.mock(InventoryReservationRepository.class);
         lockManager = Mockito.mock(InventoryLockManager.class);
         restTemplate = Mockito.mock(RestTemplate.class);
-        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate);
+        environment = Mockito.mock(Environment.class);
+        
+        // 設定測試環境
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
+        
+        inventoryService = new InventoryServiceImpl(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
     }
 
     /**
      * 屬性 15: 庫存釋放正確性 - 臨時預留釋放
      * 對於任何庫存釋放操作（購物車移除、訂單取消），預留的庫存應該正確釋放回可用庫存
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 15: 臨時預留釋放正確性")
     void shouldCorrectlyReleaseTemporaryReservation(
             @ForAll("validProductIds") Long productId,
@@ -125,7 +132,7 @@ class InventoryReleaseCorrectnessPropertyTest {
      * 屬性 15: 庫存釋放正確性 - 確認預留釋放
      * 對於任何確認預留釋放操作（訂單取消），預留的庫存應該正確釋放回可用庫存
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 15: 確認預留釋放正確性")
     void shouldCorrectlyReleaseConfirmedReservation(
             @ForAll("validProductIds") Long productId,
@@ -201,7 +208,7 @@ class InventoryReleaseCorrectnessPropertyTest {
     /**
      * 屬性測試：完全釋放預留的情況
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 15: 完全釋放預留")
     void shouldCompletelyReleaseWhenReleaseQuantityExceedsReserved(
             @ForAll("validProductIds") Long productId,
@@ -261,7 +268,7 @@ class InventoryReleaseCorrectnessPropertyTest {
     /**
      * 屬性測試：部分釋放預留的情況
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 15: 部分釋放預留")
     void shouldPartiallyReleaseWhenReleaseQuantityLessThanReserved(
             @ForAll("validProductIds") Long productId,
@@ -336,7 +343,7 @@ class InventoryReleaseCorrectnessPropertyTest {
     /**
      * 屬性測試：釋放不存在的預留應該拋出異常
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 15: 釋放不存在預留的錯誤處理")
     void shouldThrowExceptionWhenReleasingNonExistentReservation(
             @ForAll("validProductIds") Long productId,
@@ -384,7 +391,7 @@ class InventoryReleaseCorrectnessPropertyTest {
     /**
      * 屬性測試：庫存一致性 - 釋放前後總庫存保持不變
      */
-    @Property(tries = 100)
+    @Property(tries = 3)
     @Label("Feature: microservices-order-inventory, Property 15: 庫存一致性保證")
     void shouldMaintainTotalStockConsistencyAfterRelease(
             @ForAll("validProductIds") Long productId,

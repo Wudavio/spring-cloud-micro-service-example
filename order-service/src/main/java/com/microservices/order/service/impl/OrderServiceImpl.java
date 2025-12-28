@@ -9,6 +9,8 @@ import com.microservices.order.dto.UpdateOrderStatusRequest;
 import com.microservices.order.entity.*;
 import com.microservices.order.exception.CartNotFoundException;
 import com.microservices.order.exception.OrderNotFoundException;
+import com.microservices.order.exception.RetryExhaustedException;
+import com.microservices.order.exception.SystemBusyException;
 import com.microservices.order.mapper.OrderMapper;
 import com.microservices.order.repository.CartRepository;
 import com.microservices.order.repository.OrderRepository;
@@ -17,8 +19,12 @@ import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.retry.RetryCallback;
+import org.springframework.retry.RetryContext;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +35,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 訂單服務實現
+ * 實現需求 10.3, 10.4: 服務間調用失敗時自動重試最多3次
  */
 @Service
 @Transactional
@@ -50,6 +57,14 @@ public class OrderServiceImpl implements OrderService {
     
     @Autowired
     private InventoryServiceClient inventoryServiceClient;
+    
+    @Autowired
+    @Qualifier("serviceCallRetryTemplate")
+    private RetryTemplate serviceCallRetryTemplate;
+    
+    @Autowired
+    @Qualifier("inventoryOperationRetryTemplate")
+    private RetryTemplate inventoryRetryTemplate;
     
     @Override
     public OrderDTO placeOrder(PlaceOrderRequest request) {
@@ -216,46 +231,121 @@ public class OrderServiceImpl implements OrderService {
     }
     
     /**
-     * 確認庫存預留
+     * 確認庫存預留（帶重試機制）
      */
     private void confirmInventoryReservation(Long productId, String customerId, Integer quantity) {
         try {
-            InventoryServiceClient.ConfirmReservationRequest request = 
-                new InventoryServiceClient.ConfirmReservationRequest(customerId, quantity);
-            inventoryServiceClient.confirmReservation(productId, request);
-        } catch (FeignException e) {
-            logger.error("確認庫存預留失敗: productId={}, customerId={}, quantity={}", 
+            inventoryRetryTemplate.execute(new RetryCallback<Void, Exception>() {
+                @Override
+                public Void doWithRetry(RetryContext context) throws Exception {
+                    if (context.getRetryCount() > 0) {
+                        logger.info("重試確認庫存預留，第 {} 次重試: productId={}", 
+                                   context.getRetryCount(), productId);
+                    }
+                    
+                    try {
+                        InventoryServiceClient.ConfirmReservationRequest request = 
+                            new InventoryServiceClient.ConfirmReservationRequest(customerId, quantity);
+                        inventoryServiceClient.confirmReservation(productId, request);
+                        return null;
+                    } catch (FeignException.ServiceUnavailable | FeignException.InternalServerError e) {
+                        logger.warn("庫存服務暫時不可用，準備重試: productId={}", productId);
+                        throw e;
+                    } catch (FeignException e) {
+                        if (e.status() >= 500) {
+                            logger.warn("庫存服務錯誤，準備重試: productId={}, status={}", productId, e.status());
+                            throw e;
+                        } else {
+                            // 4xx 錯誤不重試
+                            logger.error("確認庫存預留失敗（不重試）: productId={}, status={}", productId, e.status());
+                            throw new RuntimeException("庫存確認失敗: " + e.getMessage());
+                        }
+                    }
+                }
+            });
+        } catch (Exception e) {
+            logger.error("確認庫存預留最終失敗: productId={}, customerId={}, quantity={}", 
                         productId, customerId, quantity, e);
-            throw new RuntimeException("庫存確認失敗");
+            if (e instanceof RuntimeException && e.getMessage().contains("庫存確認失敗")) {
+                throw (RuntimeException) e;
+            }
+            throw new RetryExhaustedException("確認庫存預留", 3, e);
         }
     }
     
     /**
-     * 釋放庫存預留
+     * 釋放庫存預留（帶重試機制）
      */
     private void releaseInventoryReservation(Long productId, String customerId, Integer quantity) {
         try {
-            InventoryServiceClient.ReleaseInventoryRequest request = 
-                new InventoryServiceClient.ReleaseInventoryRequest(customerId, quantity, "CONFIRMED");
-            inventoryServiceClient.releaseInventory(productId, request);
-        } catch (FeignException e) {
-            logger.error("釋放庫存預留失敗: productId={}, customerId={}, quantity={}", 
-                        productId, customerId, quantity, e);
+            inventoryRetryTemplate.execute(new RetryCallback<Void, Exception>() {
+                @Override
+                public Void doWithRetry(RetryContext context) throws Exception {
+                    if (context.getRetryCount() > 0) {
+                        logger.info("重試釋放庫存預留，第 {} 次重試: productId={}", 
+                                   context.getRetryCount(), productId);
+                    }
+                    
+                    try {
+                        InventoryServiceClient.ReleaseInventoryRequest request = 
+                            new InventoryServiceClient.ReleaseInventoryRequest(customerId, quantity, "CONFIRMED");
+                        inventoryServiceClient.releaseInventory(productId, request);
+                        return null;
+                    } catch (FeignException.ServiceUnavailable | FeignException.InternalServerError e) {
+                        logger.warn("庫存服務暫時不可用，準備重試: productId={}", productId);
+                        throw e;
+                    } catch (Exception e) {
+                        // 釋放庫存失敗不應該阻止訂單取消，只記錄錯誤
+                        logger.error("釋放庫存預留失敗: productId={}, customerId={}, quantity={}", 
+                                    productId, customerId, quantity, e);
+                        return null; // 不拋出異常，允許操作繼續
+                    }
+                }
+            });
+        } catch (Exception e) {
             // 釋放庫存失敗不應該阻止訂單取消，只記錄錯誤
+            logger.error("釋放庫存預留最終失敗: productId={}, customerId={}, quantity={}", 
+                        productId, customerId, quantity, e);
         }
     }
     
     /**
-     * 豐富訂單資訊（添加產品名稱等）
+     * 豐富訂單資訊（添加產品名稱等）（帶重試機制）
      */
     private void enrichOrderWithProductInfo(OrderDTO orderDTO) {
         if (orderDTO.getItems() != null) {
             for (OrderItemDTO item : orderDTO.getItems()) {
                 try {
-                    ProductServiceClient.ProductDTO product = productServiceClient.getProduct(item.getProductId());
-                    item.setProductName(product.getName());
-                } catch (FeignException e) {
-                    logger.warn("獲取產品資訊失敗: productId={}", item.getProductId());
+                    serviceCallRetryTemplate.execute(new RetryCallback<Void, Exception>() {
+                        @Override
+                        public Void doWithRetry(RetryContext context) throws Exception {
+                            if (context.getRetryCount() > 0) {
+                                logger.info("重試獲取產品資訊，第 {} 次重試: productId={}", 
+                                           context.getRetryCount(), item.getProductId());
+                            }
+                            
+                            try {
+                                ProductServiceClient.ProductDTO product = productServiceClient.getProduct(item.getProductId());
+                                item.setProductName(product.getName());
+                                return null;
+                            } catch (FeignException.ServiceUnavailable | FeignException.InternalServerError e) {
+                                logger.warn("產品服務暫時不可用，準備重試: productId={}", item.getProductId());
+                                throw e;
+                            } catch (FeignException e) {
+                                if (e.status() >= 500) {
+                                    logger.warn("產品服務錯誤，準備重試: productId={}, status={}", item.getProductId(), e.status());
+                                    throw e;
+                                } else {
+                                    // 4xx 錯誤不重試，設置預設名稱
+                                    logger.warn("獲取產品資訊失敗（不重試）: productId={}, status={}", item.getProductId(), e.status());
+                                    item.setProductName("未知產品");
+                                    return null;
+                                }
+                            }
+                        }
+                    });
+                } catch (Exception e) {
+                    logger.warn("獲取產品資訊最終失敗: productId={}", item.getProductId(), e);
                     item.setProductName("未知產品");
                 }
             }

@@ -1,5 +1,6 @@
 package com.microservices.order.service;
 
+import com.microservices.order.TestOrderServiceApplication;
 import com.microservices.order.client.InventoryServiceClient;
 import com.microservices.order.client.ProductServiceClient;
 import com.microservices.order.dto.OrderDTO;
@@ -9,10 +10,8 @@ import com.microservices.order.entity.OrderItem;
 import com.microservices.order.entity.OrderStatus;
 import com.microservices.order.repository.OrderRepository;
 import net.jqwik.api.*;
-import net.jqwik.api.constraints.AlphaChars;
-import net.jqwik.api.constraints.IntRange;
-import net.jqwik.api.constraints.StringLength;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -38,9 +37,8 @@ import static org.mockito.Mockito.when;
  * Feature: microservices-order-inventory, Property 6: 訂單查詢完整性
  * 驗證需求: 需求 1.9
  */
-@SpringBootTest
+@SpringBootTest(classes = TestOrderServiceApplication.class)
 @ActiveProfiles("test")
-@Transactional
 class OrderQueryIntegrityPropertyTest {
     
     @Autowired
@@ -67,11 +65,16 @@ class OrderQueryIntegrityPropertyTest {
     /**
      * 屬性 6: 訂單查詢完整性 - 根據ID查詢應該返回完整的訂單資訊
      */
-    @Property(tries = 100)
-    @Label("訂單查詢完整性 - 根據ID查詢應該返回完整的訂單資訊")
-    void orderQueryByIdShouldReturnCompleteInformation(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 5) Integer itemCount) {
+    @Test
+    void orderQueryByIdShouldReturnCompleteInformation() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 5);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 100; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建訂單
         Order order = setupOrderWithMultipleItems(customerId, itemCount);
@@ -95,9 +98,9 @@ class OrderQueryIntegrityPropertyTest {
         // 驗證訂單項目完整性
         assertThat(result.getItems()).hasSize(itemCount);
         
-        for (int i = 0; i < result.getItems().size(); i++) {
-            OrderItemDTO resultItem = result.getItems().get(i);
-            OrderItem orderItem = order.getItems().get(i);
+        for (int j = 0; j < result.getItems().size(); j++) {
+            OrderItemDTO resultItem = result.getItems().get(j);
+            OrderItem orderItem = order.getItems().get(j);
             
             // 驗證項目基本欄位
             assertThat(resultItem.getId()).isEqualTo(orderItem.getId());
@@ -109,16 +112,26 @@ class OrderQueryIntegrityPropertyTest {
             // 驗證產品名稱已被填充
             assertThat(resultItem.getProductName()).isNotNull().isNotEmpty();
         }
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 6: 訂單查詢完整性 - 根據訂單號查詢應該返回相同的完整資訊
      */
-    @Property(tries = 100)
-    @Label("訂單查詢完整性 - 根據訂單號查詢應該返回相同的完整資訊")
-    void orderQueryByNumberShouldReturnSameCompleteInformation(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 3) Integer itemCount) {
+    @Test
+    void orderQueryByNumberShouldReturnSameCompleteInformation() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 3);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 100; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建訂單
         Order order = setupOrderWithMultipleItems(customerId, itemCount);
@@ -139,9 +152,9 @@ class OrderQueryIntegrityPropertyTest {
         assertThat(resultById.getItems()).hasSize(resultByNumber.getItems().size());
         
         // 驗證項目詳細資訊一致
-        for (int i = 0; i < resultById.getItems().size(); i++) {
-            OrderItemDTO itemById = resultById.getItems().get(i);
-            OrderItemDTO itemByNumber = resultByNumber.getItems().get(i);
+        for (int j = 0; j < resultById.getItems().size(); j++) {
+            OrderItemDTO itemById = resultById.getItems().get(j);
+            OrderItemDTO itemByNumber = resultByNumber.getItems().get(j);
             
             assertThat(itemById.getId()).isEqualTo(itemByNumber.getId());
             assertThat(itemById.getProductId()).isEqualTo(itemByNumber.getProductId());
@@ -150,20 +163,31 @@ class OrderQueryIntegrityPropertyTest {
             assertThat(itemById.getTotalPrice()).isEqualByComparingTo(itemByNumber.getTotalPrice());
             assertThat(itemById.getProductName()).isEqualTo(itemByNumber.getProductName());
         }
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 6: 訂單查詢完整性 - 客戶訂單列表查詢應該返回完整的分頁資訊
      */
-    @Property(tries = 50)
-    @Label("訂單查詢完整性 - 客戶訂單列表查詢應該返回完整的分頁資訊")
-    void customerOrdersQueryShouldReturnCompletePageInformation(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 2, max = 5) Integer orderCount,
-            @ForAll @IntRange(min = 1, max = 3) Integer pageSize) {
+    @Test
+    void customerOrdersQueryShouldReturnCompletePageInformation() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> orderCountArb = Arbitraries.integers().between(2, 5);
+        Arbitrary<Integer> pageSizeArb = Arbitraries.integers().between(1, 3);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Integer orderCount = orderCountArb.sample();
+            Integer pageSize = pageSizeArb.sample();
         
         // 創建多個訂單
-        for (int i = 1; i <= orderCount; i++) {
+        for (int j = 1; j <= orderCount; j++) {
             setupOrderWithMultipleItems(customerId, 2);
         }
         
@@ -176,7 +200,7 @@ class OrderQueryIntegrityPropertyTest {
         
         // 驗證分頁資訊完整性
         assertThat(result).isNotNull();
-        assertThat(result.getTotalElements()).isEqualTo(orderCount);
+        assertThat(result.getTotalElements()).isEqualTo((long) orderCount);
         assertThat(result.getTotalPages()).isEqualTo((int) Math.ceil((double) orderCount / pageSize));
         assertThat(result.getNumber()).isEqualTo(0);
         assertThat(result.getSize()).isEqualTo(pageSize);
@@ -203,23 +227,35 @@ class OrderQueryIntegrityPropertyTest {
                 }
             }
         }
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 6: 訂單查詢完整性 - 產品服務不可用時應該提供降級資訊
      */
-    @Property(tries = 50)
-    @Label("訂單查詢完整性 - 產品服務不可用時應該提供降級資訊")
-    void orderQueryShouldProvideGracefulDegradationWhenProductServiceUnavailable(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 3) Integer itemCount) {
+    @Test
+    void orderQueryShouldProvideGracefulDegradationWhenProductServiceUnavailable() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 3);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建訂單
         Order order = setupOrderWithMultipleItems(customerId, itemCount);
         
         // 模擬產品服務不可用
         when(productServiceClient.getProduct(anyLong()))
-            .thenThrow(new RuntimeException("Product service unavailable"));
+            .thenThrow(new feign.FeignException.InternalServerError("Product service unavailable", 
+                feign.Request.create(feign.Request.HttpMethod.GET, "/products/1", 
+                    java.util.Collections.emptyMap(), null, java.nio.charset.StandardCharsets.UTF_8), null, null));
         
         // 執行查詢
         OrderDTO result = orderService.getOrder(order.getId());
@@ -242,16 +278,26 @@ class OrderQueryIntegrityPropertyTest {
             assertThat(item.getTotalPrice()).isNotNull().isPositive();
             assertThat(item.getProductName()).isEqualTo("未知產品");
         }
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 6: 訂單查詢完整性 - 多次查詢應該返回一致的結果
      */
-    @Property(tries = 50)
-    @Label("訂單查詢完整性 - 多次查詢應該返回一致的結果")
-    void multipleOrderQueriesShouldReturnConsistentResults(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 3) Integer itemCount) {
+    @Test
+    void multipleOrderQueriesShouldReturnConsistentResults() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 3);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建訂單
         Order order = setupOrderWithMultipleItems(customerId, itemCount);
@@ -273,16 +319,21 @@ class OrderQueryIntegrityPropertyTest {
         assertThat(result1.getItems()).hasSize(result2.getItems().size()).hasSize(result3.getItems().size());
         
         // 驗證項目詳細資訊一致
-        for (int i = 0; i < result1.getItems().size(); i++) {
-            OrderItemDTO item1 = result1.getItems().get(i);
-            OrderItemDTO item2 = result2.getItems().get(i);
-            OrderItemDTO item3 = result3.getItems().get(i);
+        for (int j = 0; j < result1.getItems().size(); j++) {
+            OrderItemDTO item1 = result1.getItems().get(j);
+            OrderItemDTO item2 = result2.getItems().get(j);
+            OrderItemDTO item3 = result3.getItems().get(j);
             
             assertThat(item1.getId()).isEqualTo(item2.getId()).isEqualTo(item3.getId());
             assertThat(item1.getProductId()).isEqualTo(item2.getProductId()).isEqualTo(item3.getProductId());
             assertThat(item1.getQuantity()).isEqualTo(item2.getQuantity()).isEqualTo(item3.getQuantity());
             assertThat(item1.getUnitPrice()).isEqualByComparingTo(item2.getUnitPrice()).isEqualByComparingTo(item3.getUnitPrice());
             assertThat(item1.getProductName()).isEqualTo(item2.getProductName()).isEqualTo(item3.getProductName());
+        }
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
         }
     }
     

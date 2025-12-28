@@ -13,11 +13,12 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
-        format_sql: true
-  redis:
-    host: localhost
-    port: 6379
-    timeout: 2000ms
+        '[format_sql]': true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
   cloud:
     config:
       enabled: false
@@ -27,8 +28,8 @@ server:
 
 logging:
   level:
-    com.microservices.order: DEBUG
-    org.springframework.web: DEBUG
+    '[com.microservices.order]': DEBUG
+    '[org.springframework.web]': DEBUG
 
 # 禁用 Eureka 客戶端
 eureka:

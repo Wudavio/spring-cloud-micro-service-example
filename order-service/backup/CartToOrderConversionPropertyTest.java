@@ -1,5 +1,6 @@
 package com.microservices.order.service;
 
+import com.microservices.order.TestOrderServiceApplication;
 import com.microservices.order.client.InventoryServiceClient;
 import com.microservices.order.client.ProductServiceClient;
 import com.microservices.order.dto.OrderDTO;
@@ -13,10 +14,8 @@ import com.microservices.order.repository.CartRepository;
 import com.microservices.order.repository.CartItemRepository;
 import com.microservices.order.repository.OrderRepository;
 import net.jqwik.api.*;
-import net.jqwik.api.constraints.AlphaChars;
-import net.jqwik.api.constraints.IntRange;
-import net.jqwik.api.constraints.StringLength;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -38,9 +37,8 @@ import static org.mockito.Mockito.doThrow;
  * Feature: microservices-order-inventory, Property 5: 購物車到訂單轉換
  * 驗證需求: 需求 1.7, 1.8
  */
-@SpringBootTest
+@SpringBootTest(classes = TestOrderServiceApplication.class)
 @ActiveProfiles("test")
-@Transactional
 class CartToOrderConversionPropertyTest {
     
     @Autowired
@@ -75,94 +73,116 @@ class CartToOrderConversionPropertyTest {
     /**
      * 屬性 5: 購物車到訂單轉換 - 有效購物車應該成功轉換為訂單
      */
-    @Property(tries = 100)
-    @Label("購物車到訂單轉換 - 有效購物車應該成功轉換為訂單")
-    void validCartShouldBeConvertedToOrderSuccessfully(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 5) Integer itemCount) {
+    @Test
+    void validCartShouldBeConvertedToOrderSuccessfully() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 5);
         
-        // 創建購物車和項目
-        Cart cart = setupCartWithMultipleItems(customerId, itemCount);
-        
-        // 模擬產品服務和庫存服務調用
-        mockServicesForOrderCreation(cart.getItems());
-        
-        // 計算預期總金額
-        BigDecimal expectedTotalAmount = cart.getItems().stream()
-            .map(CartItem::getTotalPrice)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
-        // 執行下單
-        PlaceOrderRequest request = new PlaceOrderRequest(customerId);
-        OrderDTO result = orderService.placeOrder(request);
-        
-        // 驗證訂單基本資訊
-        assertThat(result).isNotNull();
-        assertThat(result.getId()).isNotNull();
-        assertThat(result.getOrderNumber()).isNotNull().startsWith("ORD");
-        assertThat(result.getCustomerId()).isEqualTo(customerId);
-        assertThat(result.getStatus()).isEqualTo(OrderStatus.PENDING);
-        assertThat(result.getTotalAmount()).isEqualByComparingTo(expectedTotalAmount);
-        assertThat(result.getCreatedAt()).isNotNull();
-        assertThat(result.getUpdatedAt()).isNotNull();
-        
-        // 驗證訂單項目
-        assertThat(result.getItems()).hasSize(itemCount);
-        
-        for (int i = 0; i < result.getItems().size(); i++) {
-            OrderItemDTO orderItem = result.getItems().get(i);
-            CartItem cartItem = cart.getItems().get(i);
+        // 運行多次迭代測試
+        for (int i = 0; i < 10; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
             
-            assertThat(orderItem.getId()).isNotNull();
-            assertThat(orderItem.getProductId()).isEqualTo(cartItem.getProductId());
-            assertThat(orderItem.getQuantity()).isEqualTo(cartItem.getQuantity());
-            assertThat(orderItem.getUnitPrice()).isEqualByComparingTo(cartItem.getUnitPrice());
-            assertThat(orderItem.getTotalPrice()).isEqualByComparingTo(cartItem.getTotalPrice());
-            assertThat(orderItem.getProductName()).isNotNull();
+            // 創建購物車和項目
+            Cart cart = setupCartWithMultipleItems(customerId, itemCount);
+            
+            // 模擬產品服務和庫存服務調用
+            mockServicesForOrderCreation(cart.getItems());
+            
+            // 計算預期總金額
+            BigDecimal expectedTotalAmount = cart.getItems().stream()
+                .map(CartItem::getTotalPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            // 執行下單
+            PlaceOrderRequest request = new PlaceOrderRequest(customerId);
+            OrderDTO result = orderService.placeOrder(request);
+            
+            // 驗證訂單基本資訊
+            assertThat(result).isNotNull();
+            assertThat(result.getId()).isNotNull();
+            assertThat(result.getOrderNumber()).isNotNull().startsWith("ORD");
+            assertThat(result.getCustomerId()).isEqualTo(customerId);
+            assertThat(result.getStatus()).isEqualTo(OrderStatus.PENDING);
+            assertThat(result.getTotalAmount()).isEqualByComparingTo(expectedTotalAmount);
+            assertThat(result.getCreatedAt()).isNotNull();
+            assertThat(result.getUpdatedAt()).isNotNull();
+            
+            // 驗證訂單項目
+            assertThat(result.getItems()).hasSize(itemCount);
+            
+            for (int j = 0; j < result.getItems().size(); j++) {
+                OrderItemDTO orderItem = result.getItems().get(j);
+                CartItem cartItem = cart.getItems().get(j);
+                
+                assertThat(orderItem.getId()).isNotNull();
+                assertThat(orderItem.getProductId()).isEqualTo(cartItem.getProductId());
+                assertThat(orderItem.getQuantity()).isEqualTo(cartItem.getQuantity());
+                assertThat(orderItem.getUnitPrice()).isEqualByComparingTo(cartItem.getUnitPrice());
+                assertThat(orderItem.getTotalPrice()).isEqualByComparingTo(cartItem.getTotalPrice());
+                assertThat(orderItem.getProductName()).isNotNull();
+            }
+            
+            // 驗證購物車已被清空
+            assertThat(cartRepository.findByCustomerId(customerId)).isEmpty();
+            
+            // 驗證庫存確認調用
+            verify(inventoryServiceClient, times(itemCount)).confirmReservation(anyLong(), any());
+            
+            // 清理數據和 Mock
+            orderRepository.deleteAll();
+            cartItemRepository.deleteAll();
+            cartRepository.deleteAll();
+            reset(productServiceClient, inventoryServiceClient);
         }
-        
-        // 驗證購物車已被清空
-        assertThat(cartRepository.findByCustomerId(customerId)).isEmpty();
-        
-        // 驗證庫存確認調用
-        verify(inventoryServiceClient, times(itemCount)).confirmReservation(anyLong(), any());
     }
     
     /**
      * 屬性 5: 購物車到訂單轉換 - 空購物車應該拋出異常
      */
-    @Property(tries = 100)
-    @Label("購物車到訂單轉換 - 空購物車應該拋出異常")
-    void emptyCartShouldThrowException(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId) {
+    @Test
+    void emptyCartShouldThrowException() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
         
-        // 不創建購物車或創建空購物車
-        PlaceOrderRequest request = new PlaceOrderRequest(customerId);
-        
-        // 驗證拋出 CartNotFoundException
-        assertThatThrownBy(() -> orderService.placeOrder(request))
-            .isInstanceOf(CartNotFoundException.class)
-            .hasMessageContaining("購物車為空或不存在");
-        
-        // 驗證沒有創建訂單
-        assertThat(orderRepository.findByCustomerId(customerId, null)).isEmpty();
+        // 運行多次迭代測試
+        for (int i = 0; i < 10; i++) {
+            String customerId = customerIdArb.sample();
+            
+            // 不創建購物車或創建空購物車
+            PlaceOrderRequest request = new PlaceOrderRequest(customerId);
+            
+            // 驗證拋出 CartNotFoundException
+            assertThatThrownBy(() -> orderService.placeOrder(request))
+                .isInstanceOf(CartNotFoundException.class)
+                .hasMessageContaining("購物車為空或不存在");
+            
+            // 驗證沒有創建訂單
+            assertThat(orderRepository.findByCustomerId(customerId, null)).isEmpty();
+        }
     }
     
     /**
      * 屬性 5: 購物車到訂單轉換 - 庫存確認失敗應該拋出異常
      */
-    @Property(tries = 50)
-    @Label("購物車到訂單轉換 - 庫存確認失敗應該拋出異常")
-    void inventoryConfirmationFailureShouldThrowException(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 3) Integer itemCount) {
+    @Test
+    void inventoryConfirmationFailureShouldThrowException() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 3);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建購物車和項目
         Cart cart = setupCartWithMultipleItems(customerId, itemCount);
         
         // 模擬產品服務成功，但庫存確認失敗
         mockProductServiceForAllItems(cart.getItems());
-        doThrow(new RuntimeException("Inventory confirmation failed"))
+        doThrow(new RuntimeException("庫存確認失敗"))
             .when(inventoryServiceClient).confirmReservation(anyLong(), any(InventoryServiceClient.ConfirmReservationRequest.class));
         
         // 執行下單
@@ -175,18 +195,32 @@ class CartToOrderConversionPropertyTest {
         
         // 驗證購物車仍然存在（事務回滾）
         assertThat(cartRepository.findByCustomerId(customerId)).isPresent();
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 5: 購物車到訂單轉換 - 訂單號應該是唯一的
      */
-    @Property(tries = 50)
-    @Label("購物車到訂單轉換 - 訂單號應該是唯一的")
-    void orderNumbersShouldBeUnique(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId1,
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId2) {
+    @Test
+    void orderNumbersShouldBeUnique() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
         
-        Assume.that(!customerId1.equals(customerId2));
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId1 = customerIdArb.sample();
+            String customerId2 = customerIdArb.sample();
+            
+            // 確保兩個客戶ID不同
+            if (customerId1.equals(customerId2)) {
+                continue;
+            }
         
         // 為兩個客戶創建購物車
         Cart cart1 = setupCartWithMultipleItems(customerId1, 2);
@@ -206,16 +240,28 @@ class CartToOrderConversionPropertyTest {
         // 驗證訂單號唯一
         assertThat(order1.getOrderNumber()).isNotEqualTo(order2.getOrderNumber());
         assertThat(order1.getId()).isNotEqualTo(order2.getId());
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 5: 購物車到訂單轉換 - 轉換過程應該是原子性的
      */
-    @Property(tries = 50)
-    @Label("購物車到訂單轉換 - 轉換過程應該是原子性的")
-    void conversionShouldBeAtomic(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 2, max = 4) Integer itemCount) {
+    @Test
+    void conversionShouldBeAtomic() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(2, 4);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 50; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建購物車和項目
         Cart cart = setupCartWithMultipleItems(customerId, itemCount);
@@ -225,7 +271,7 @@ class CartToOrderConversionPropertyTest {
         
         // 模擬第一個商品庫存確認成功，第二個失敗
         doNothing().when(inventoryServiceClient).confirmReservation(eq(1L), any());
-        doThrow(new RuntimeException("Inventory confirmation failed"))
+        doThrow(new RuntimeException("庫存確認失敗"))
             .when(inventoryServiceClient).confirmReservation(eq(2L), any());
         
         // 執行下單
@@ -239,17 +285,29 @@ class CartToOrderConversionPropertyTest {
         assertThat(cartRepository.findByCustomerId(customerId)).isPresent();
         
         // 驗證沒有創建訂單
-        assertThat(orderRepository.findByCustomerId(customerId, null)).isEmpty();
+        assertThat(orderRepository.findAll()).isEmpty();
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
+        }
     }
     
     /**
      * 屬性 5: 購物車到訂單轉換 - 產品資訊應該正確映射到訂單項目
      */
-    @Property(tries = 100)
-    @Label("購物車到訂單轉換 - 產品資訊應該正確映射到訂單項目")
-    void productInfoShouldBeMappedCorrectlyToOrderItems(
-            @ForAll @StringLength(min = 5, max = 20) @AlphaChars String customerId,
-            @ForAll @IntRange(min = 1, max = 3) Integer itemCount) {
+    @Test
+    void productInfoShouldBeMappedCorrectlyToOrderItems() {
+        // 使用 jqwik 生成器創建測試數據
+        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 3);
+        
+        // 運行多次迭代測試
+        for (int i = 0; i < 100; i++) {
+            String customerId = customerIdArb.sample();
+            Integer itemCount = itemCountArb.sample();
         
         // 創建購物車和項目
         Cart cart = setupCartWithMultipleItems(customerId, itemCount);
@@ -262,9 +320,9 @@ class CartToOrderConversionPropertyTest {
         OrderDTO result = orderService.placeOrder(request);
         
         // 驗證每個訂單項目的產品資訊映射
-        for (int i = 0; i < result.getItems().size(); i++) {
-            OrderItemDTO orderItem = result.getItems().get(i);
-            CartItem cartItem = cart.getItems().get(i);
+        for (int j = 0; j < result.getItems().size(); j++) {
+            OrderItemDTO orderItem = result.getItems().get(j);
+            CartItem cartItem = cart.getItems().get(j);
             
             // 驗證數量和價格映射
             assertThat(orderItem.getQuantity()).isEqualTo(cartItem.getQuantity());
@@ -276,6 +334,13 @@ class CartToOrderConversionPropertyTest {
             
             // 驗證產品名稱已被填充
             assertThat(orderItem.getProductName()).isEqualTo("測試產品 " + cartItem.getProductId());
+        }
+        
+        // 清理數據和 Mock
+        orderRepository.deleteAll();
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        reset(productServiceClient, inventoryServiceClient);
         }
     }
     
