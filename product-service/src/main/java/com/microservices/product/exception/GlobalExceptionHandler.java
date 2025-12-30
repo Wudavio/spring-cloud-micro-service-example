@@ -7,6 +7,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -56,11 +57,25 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, 
+                                                               HttpServletRequest request) {
+        // 不攔截 Swagger/OpenAPI 相關的請求
+        String requestURI = request.getRequestURI();
+        if (requestURI.contains("/v3/api-docs") || 
+            requestURI.contains("/swagger-ui") || 
+            requestURI.contains("/swagger-resources")) {
+            throw new RuntimeException(ex);
+        }
+        
+        // 打印完整的異常堆棧用於調試
+        System.err.println("=== Product Service Exception ===");
+        ex.printStackTrace();
+        System.err.println("=== End Exception ===");
+        
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Internal Server Error",
-                "An unexpected error occurred",
+                "An unexpected error occurred: " + ex.getMessage(),
                 LocalDateTime.now()
         );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);

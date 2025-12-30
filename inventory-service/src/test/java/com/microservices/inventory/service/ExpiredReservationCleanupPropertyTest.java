@@ -438,8 +438,8 @@ class ExpiredReservationCleanupPropertyTest {
     }
 
     @Provide
-    Arbitrary<String> validCustomerIds() {
-        return Arbitraries.strings().withCharRange('a', 'z').ofMinLength(5).ofMaxLength(20);
+    Arbitrary<Long> validUserIds() {
+        return Arbitraries.longs().between(1L, 10000L);
     }
 
     @Provide
@@ -462,11 +462,11 @@ class ExpiredReservationCleanupPropertyTest {
     @Provide
     Arbitrary<InventoryReservation> expiredTemporaryReservation() {
         return validProductIds().flatMap(productId ->
-            validCustomerIds().flatMap(customerId ->
+            validUserIds().flatMap(userId ->
                 validQuantities().flatMap(quantity ->
                     expiredTimes().map(expiresAt -> {
                         InventoryReservation reservation = new InventoryReservation(
-                                productId, customerId, quantity, ReservationType.TEMPORARY, expiresAt);
+                                productId, userId, quantity, ReservationType.TEMPORARY, expiresAt);
                         reservation.setId(System.currentTimeMillis() + productId);
                         reservation.setCreatedAt(expiresAt.minusHours(1));
                         return reservation;
@@ -479,11 +479,11 @@ class ExpiredReservationCleanupPropertyTest {
     @Provide
     Arbitrary<InventoryReservation> expiredConfirmedReservation() {
         return validProductIds().flatMap(productId ->
-            validCustomerIds().flatMap(customerId ->
+            validUserIds().flatMap(userId ->
                 validQuantities().flatMap(quantity ->
                     expiredTimes().map(expiresAt -> {
                         InventoryReservation reservation = new InventoryReservation(
-                                productId, customerId, quantity, ReservationType.CONFIRMED, expiresAt);
+                                productId, userId, quantity, ReservationType.CONFIRMED, expiresAt);
                         reservation.setId(System.currentTimeMillis() + productId + 10000);
                         reservation.setCreatedAt(expiresAt.minusHours(1));
                         return reservation;

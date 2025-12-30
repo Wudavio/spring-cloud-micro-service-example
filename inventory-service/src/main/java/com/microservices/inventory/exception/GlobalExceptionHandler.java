@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -103,7 +104,16 @@ public class GlobalExceptionHandler {
      * 處理一般異常
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGeneralException(Exception ex) {
+    public ResponseEntity<ErrorResponse> handleGeneralException(Exception ex, 
+                                                               HttpServletRequest request) {
+        // 不攔截 Swagger/OpenAPI 相關的請求
+        String requestURI = request.getRequestURI();
+        if (requestURI.contains("/v3/api-docs") || 
+            requestURI.contains("/swagger-ui") || 
+            requestURI.contains("/swagger-resources")) {
+            throw new RuntimeException(ex);
+        }
+        
         logger.error("系統異常: ", ex);
         
         ErrorResponse errorResponse = new ErrorResponse(

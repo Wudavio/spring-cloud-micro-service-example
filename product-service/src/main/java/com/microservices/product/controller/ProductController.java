@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/products")
+@RequestMapping("/products")
 @CrossOrigin(origins = "*")
 @Tag(name = "產品管理", description = "產品 CRUD 操作、狀態管理和查詢功能")
 public class ProductController {
@@ -43,9 +43,9 @@ public class ProductController {
     })
     @GetMapping
     public ResponseEntity<Page<ProductDTO>> getProducts(
-            @Parameter(description = "產品分類") @RequestParam(required = false) String category,
-            @Parameter(description = "搜尋關鍵字") @RequestParam(required = false) String keyword,
-            @Parameter(description = "是否只顯示啟用產品") @RequestParam(defaultValue = "true") boolean activeOnly,
+            @Parameter(description = "產品分類") @RequestParam(value = "category", required = false) String category,
+            @Parameter(description = "搜尋關鍵字") @RequestParam(value = "keyword", required = false) String keyword,
+            @Parameter(description = "是否只顯示啟用產品") @RequestParam(value = "activeOnly", defaultValue = "true") boolean activeOnly,
             @Parameter(description = "分頁參數") Pageable pageable) {
         
         Page<ProductDTO> products;
@@ -72,8 +72,8 @@ public class ProductController {
     })
     @GetMapping("/{id}")
     public ResponseEntity<ProductDTO> getProduct(
-            @Parameter(description = "產品 ID") @PathVariable Long id,
-            @Parameter(description = "是否只查詢啟用產品") @RequestParam(defaultValue = "true") boolean activeOnly) {
+            @Parameter(description = "產品 ID") @PathVariable("id") Long id,
+            @Parameter(description = "是否只查詢啟用產品") @RequestParam(value = "activeOnly", defaultValue = "true") boolean activeOnly) {
         
         Optional<ProductDTO> product = activeOnly 
             ? productService.getActiveProductById(id)
@@ -111,7 +111,7 @@ public class ProductController {
     })
     @PutMapping("/{id}")
     public ResponseEntity<ProductDTO> updateProduct(
-            @Parameter(description = "產品 ID") @PathVariable Long id, 
+            @Parameter(description = "產品 ID") @PathVariable("id") Long id, 
             @Parameter(description = "產品更新請求") @Valid @RequestBody UpdateProductRequest request) {
         try {
             ProductDTO updatedProduct = productService.updateProduct(id, request);
@@ -129,7 +129,7 @@ public class ProductController {
     })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(
-            @Parameter(description = "產品 ID") @PathVariable Long id) {
+            @Parameter(description = "產品 ID") @PathVariable("id") Long id) {
         try {
             productService.deleteProduct(id);
             return ResponseEntity.noContent().build();
@@ -146,8 +146,8 @@ public class ProductController {
     })
     @PutMapping("/{id}/status")
     public ResponseEntity<Void> changeProductStatus(
-            @Parameter(description = "產品 ID") @PathVariable Long id,
-            @Parameter(description = "新狀態") @RequestParam ProductStatus status) {
+            @Parameter(description = "產品 ID") @PathVariable("id") Long id,
+            @Parameter(description = "新狀態") @RequestParam("status") ProductStatus status) {
         try {
             productService.changeProductStatus(id, status);
             return ResponseEntity.ok().build();
@@ -165,7 +165,7 @@ public class ProductController {
     })
     @GetMapping("/search")
     public ResponseEntity<Page<ProductDTO>> searchProducts(
-            @Parameter(description = "搜尋關鍵字") @RequestParam String keyword, 
+            @Parameter(description = "搜尋關鍵字") @RequestParam("keyword") String keyword, 
             @Parameter(description = "分頁參數") Pageable pageable) {
         
         if (keyword == null || keyword.trim().isEmpty()) {
@@ -184,7 +184,7 @@ public class ProductController {
     })
     @GetMapping("/{id}/exists")
     public ResponseEntity<Boolean> checkProductExists(
-            @Parameter(description = "產品 ID") @PathVariable Long id) {
+            @Parameter(description = "產品 ID") @PathVariable("id") Long id) {
         boolean exists = productService.existsById(id);
         return ResponseEntity.ok(exists);
     }
@@ -197,7 +197,7 @@ public class ProductController {
     })
     @GetMapping("/{id}/active")
     public ResponseEntity<Boolean> checkProductActive(
-            @Parameter(description = "產品 ID") @PathVariable Long id) {
+            @Parameter(description = "產品 ID") @PathVariable("id") Long id) {
         boolean active = productService.isProductActive(id);
         return ResponseEntity.ok(active);
     }

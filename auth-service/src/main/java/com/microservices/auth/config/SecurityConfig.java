@@ -49,8 +49,9 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                // 允許認證相關的端點
-                .requestMatchers("/api/auth/**").permitAll()
+                // 允許認證相關的端點（注意：Gateway 會 strip 掉 /api 前綴）
+                .requestMatchers("/auth/**", "/users/**").permitAll()
+                .requestMatchers("/api/auth/**", "/api/users/**").permitAll() // 保留原有配置以防直接訪問
                 // 允許 Swagger UI 和 API 文檔
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 // 允許 Actuator 健康檢查

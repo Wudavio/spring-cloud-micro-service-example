@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
  * 購物車控制器
  */
 @RestController
-@RequestMapping("/api/cart")
+@RequestMapping("/cart")
 @CrossOrigin(origins = "*")
 @Tag(name = "購物車管理", description = "購物車相關的 API 操作")
 public class CartController {

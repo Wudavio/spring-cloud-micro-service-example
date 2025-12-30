@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
  * 用戶管理控制器
  */
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/users")
 @CrossOrigin(origins = "*")
 @Tag(name = "用戶管理", description = "用戶管理相關的 API 操作")
 public class UserController {

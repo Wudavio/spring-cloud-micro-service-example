@@ -16,8 +16,7 @@ spring:
     gateway:
       discovery:
         locator:
-          enabled: true
-          lower-case-service-id: true
+          enabled: false
       routes:
         - id: product-service
           uri: lb://product-service
@@ -43,6 +42,31 @@ spring:
             - Path=/api/auth/**,/api/users/**
           filters:
             - StripPrefix=1
+        # Swagger UI 路由 - 各服務的 Swagger 文檔
+        - id: auth-service-swagger
+          uri: lb://auth-service
+          predicates:
+            - Path=/v3/api-docs/auth-service
+          filters:
+            - RewritePath=/v3/api-docs/auth-service, /v3/api-docs
+        - id: product-service-swagger
+          uri: lb://product-service
+          predicates:
+            - Path=/v3/api-docs/product-service
+          filters:
+            - RewritePath=/v3/api-docs/product-service, /v3/api-docs
+        - id: inventory-service-swagger
+          uri: lb://inventory-service
+          predicates:
+            - Path=/v3/api-docs/inventory-service
+          filters:
+            - RewritePath=/v3/api-docs/inventory-service, /v3/api-docs
+        - id: order-service-swagger
+          uri: lb://order-service
+          predicates:
+            - Path=/v3/api-docs/order-service
+          filters:
+            - RewritePath=/v3/api-docs/order-service, /v3/api-docs
 
 server:
   port: 8080
@@ -66,3 +90,27 @@ management:
   endpoint:
     health:
       show-details: always
+    gateway:
+      enabled: true
+
+# Swagger 配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    config-url: /v3/api-docs/swagger-config
+    urls:
+      - name: API Gateway
+        url: /v3/api-docs
+      - name: Auth Service
+        url: /v3/api-docs/auth-service
+      - name: Product Service
+        url: /v3/api-docs/product-service
+      - name: Inventory Service
+        url: /v3/api-docs/inventory-service
+      - name: Order Service
+        url: /v3/api-docs/order-service
+  show-actuator: false

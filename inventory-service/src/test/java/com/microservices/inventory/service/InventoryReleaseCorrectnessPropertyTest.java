@@ -63,7 +63,7 @@ class InventoryReleaseCorrectnessPropertyTest {
             @ForAll("validStockQuantities") Integer initialAvailableStock,
             @ForAll("validReservationQuantities") Integer reservedQuantity,
             @ForAll("validReleaseQuantities") Integer releaseQuantity,
-            @ForAll("validCustomerIds") String customerId) throws Exception {
+            @ForAll("validCustomerIds") Long customerId) throws Exception {
 
         // 重置 mock 物件
         reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
@@ -87,7 +87,7 @@ class InventoryReleaseCorrectnessPropertyTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         // 設定預留記錄存儲庫的回應
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 productId, customerId, ReservationType.TEMPORARY))
                 .thenReturn(List.of(tempReservation));
 
@@ -118,7 +118,7 @@ class InventoryReleaseCorrectnessPropertyTest {
         if (expectedTemporaryReserved > 0) {
             verify(reservationRepository).save(argThat(reservation ->
                 reservation.getProductId().equals(productId) &&
-                reservation.getCustomerId().equals(customerId) &&
+                reservation.getUserId().equals(customerId) &&
                 reservation.getQuantity().equals(expectedTemporaryReserved) &&
                 reservation.getType() == ReservationType.TEMPORARY
             ));
@@ -139,7 +139,7 @@ class InventoryReleaseCorrectnessPropertyTest {
             @ForAll("validStockQuantities") Integer initialAvailableStock,
             @ForAll("validReservationQuantities") Integer confirmedQuantity,
             @ForAll("validReleaseQuantities") Integer releaseQuantity,
-            @ForAll("validCustomerIds") String customerId) throws Exception {
+            @ForAll("validCustomerIds") Long customerId) throws Exception {
 
         // 重置 mock 物件
         reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
@@ -163,7 +163,7 @@ class InventoryReleaseCorrectnessPropertyTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         // 設定預留記錄存儲庫的回應
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 productId, customerId, ReservationType.CONFIRMED))
                 .thenReturn(List.of(confirmedReservation));
 
@@ -195,7 +195,7 @@ class InventoryReleaseCorrectnessPropertyTest {
         if (expectedConfirmedReserved > 0) {
             verify(reservationRepository).save(argThat(reservation ->
                 reservation.getProductId().equals(productId) &&
-                reservation.getCustomerId().equals(customerId) &&
+                reservation.getUserId().equals(customerId) &&
                 reservation.getQuantity().equals(expectedConfirmedReserved) &&
                 reservation.getType() == ReservationType.CONFIRMED
             ));
@@ -214,7 +214,7 @@ class InventoryReleaseCorrectnessPropertyTest {
             @ForAll("validProductIds") Long productId,
             @ForAll("validStockQuantities") Integer initialAvailableStock,
             @ForAll("validReservationQuantities") Integer reservedQuantity,
-            @ForAll("validCustomerIds") String customerId) throws Exception {
+            @ForAll("validCustomerIds") Long customerId) throws Exception {
 
         // 釋放數量大於預留數量
         int releaseQuantity = reservedQuantity + 10;
@@ -239,7 +239,7 @@ class InventoryReleaseCorrectnessPropertyTest {
                 .thenReturn(Optional.of(inventory));
         when(inventoryRepository.save(any(Inventory.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 productId, customerId, ReservationType.TEMPORARY))
                 .thenReturn(List.of(tempReservation));
 
@@ -275,7 +275,7 @@ class InventoryReleaseCorrectnessPropertyTest {
             @ForAll("validStockQuantities") Integer initialAvailableStock,
             @ForAll("largeReservationQuantities") Integer reservedQuantity,
             @ForAll("smallReleaseQuantities") Integer releaseQuantity,
-            @ForAll("validCustomerIds") String customerId) throws Exception {
+            @ForAll("validCustomerIds") Long customerId) throws Exception {
 
         // 確保釋放數量小於預留數量
         Assume.that(releaseQuantity < reservedQuantity);
@@ -300,7 +300,7 @@ class InventoryReleaseCorrectnessPropertyTest {
                 .thenReturn(Optional.of(inventory));
         when(inventoryRepository.save(any(Inventory.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 productId, customerId, ReservationType.CONFIRMED))
                 .thenReturn(List.of(confirmedReservation));
         when(reservationRepository.save(any(InventoryReservation.class)))
@@ -334,7 +334,7 @@ class InventoryReleaseCorrectnessPropertyTest {
         // 驗證創建了新的預留記錄（剩餘數量）
         verify(reservationRepository).save(argThat(reservation ->
             reservation.getProductId().equals(productId) &&
-            reservation.getCustomerId().equals(customerId) &&
+            reservation.getUserId().equals(customerId) &&
             reservation.getQuantity().equals(remainingQuantity) &&
             reservation.getType() == ReservationType.CONFIRMED
         ));
@@ -348,7 +348,7 @@ class InventoryReleaseCorrectnessPropertyTest {
     void shouldThrowExceptionWhenReleasingNonExistentReservation(
             @ForAll("validProductIds") Long productId,
             @ForAll("validReleaseQuantities") Integer releaseQuantity,
-            @ForAll("validCustomerIds") String customerId) throws Exception {
+            @ForAll("validCustomerIds") Long customerId) throws Exception {
 
         // 重置 mock 物件
         reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
@@ -361,7 +361,7 @@ class InventoryReleaseCorrectnessPropertyTest {
         // 設定存儲庫回應 - 沒有找到預留記錄
         when(inventoryRepository.findByProductId(productId))
                 .thenReturn(Optional.of(inventory));
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 productId, customerId, ReservationType.TEMPORARY))
                 .thenReturn(new ArrayList<>());
 
@@ -399,7 +399,7 @@ class InventoryReleaseCorrectnessPropertyTest {
             @ForAll("validReservationQuantities") Integer tempReserved,
             @ForAll("validReservationQuantities") Integer confirmedReserved,
             @ForAll("validReleaseQuantities") Integer releaseQuantity,
-            @ForAll("validCustomerIds") String customerId) throws Exception {
+            @ForAll("validCustomerIds") Long customerId) throws Exception {
 
         // 重置 mock 物件
         reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
@@ -425,7 +425,7 @@ class InventoryReleaseCorrectnessPropertyTest {
                 .thenReturn(Optional.of(inventory));
         when(inventoryRepository.save(any(Inventory.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 productId, customerId, ReservationType.TEMPORARY))
                 .thenReturn(List.of(tempReservation));
         when(reservationRepository.save(any(InventoryReservation.class)))
@@ -484,11 +484,7 @@ class InventoryReleaseCorrectnessPropertyTest {
     }
 
     @Provide
-    Arbitrary<String> validCustomerIds() {
-        return Arbitraries.strings()
-                .withCharRange('a', 'z')
-                .ofMinLength(5)
-                .ofMaxLength(20)
-                .map(s -> "customer_" + s);
+    Arbitrary<Long> validCustomerIds() {
+        return Arbitraries.longs().between(1L, 10000L);
     }
 }

@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
  * 認證控制器
  */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/auth")
 @CrossOrigin(origins = "*")
 @Tag(name = "認證管理", description = "用戶認證相關的 API 操作")
 public class AuthController {

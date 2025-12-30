@@ -67,13 +67,13 @@ class CartInventorySyncPropertyTest {
     @Test
     void addingItemsShouldSyncInventoryReservation() {
         // 使用 jqwik 生成器創建測試數據
-        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Long> customerIdArb = Arbitraries.longs().between(1L, 10000L);
         Arbitrary<Long> productIdArb = Arbitraries.longs().between(1L, 1000L);
         Arbitrary<Integer> quantityArb = Arbitraries.integers().between(1, 10);
         
         // 運行多次迭代測試
         for (int i = 0; i < 10; i++) {
-            String customerId = customerIdArb.sample();
+            Long customerId = customerIdArb.sample();
             Long productId = productIdArb.sample();
             Integer quantity = quantityArb.sample();
         
@@ -82,11 +82,12 @@ class CartInventorySyncPropertyTest {
             when(productServiceClient.getProduct(productId)).thenReturn(mockProduct);
             
             // 模擬庫存預留成功
-            InventoryServiceClient.ReservationDTO mockReservation = createMockReservation(productId, customerId, quantity);
+            InventoryServiceClient.ReservationDTO mockReservation = createMockReservation(productId, customerId.toString(), quantity);
             when(inventoryServiceClient.reserveInventory(anyLong(), any())).thenReturn(mockReservation);
             
             // 創建添加到購物車的請求
-            AddToCartRequest request = new AddToCartRequest(customerId, productId, quantity);
+            AddToCartRequest request = new AddToCartRequest(productId, quantity);
+            request.setUserId(customerId);
             
             // 執行添加操作
             CartDTO result = cartService.addToCart(request);
@@ -120,14 +121,14 @@ class CartInventorySyncPropertyTest {
     @Test
     void updatingItemQuantityShouldAdjustInventoryReservation() {
         // 使用 jqwik 生成器創建測試數據
-        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Long> customerIdArb = Arbitraries.longs().between(1L, 10000L);
         Arbitrary<Long> productIdArb = Arbitraries.longs().between(1L, 1000L);
         Arbitrary<Integer> initialQuantityArb = Arbitraries.integers().between(1, 5);
         Arbitrary<Integer> newQuantityArb = Arbitraries.integers().between(1, 10);
         
         // 運行多次迭代測試
         for (int i = 0; i < 10; i++) {
-            String customerId = customerIdArb.sample();
+            Long customerId = customerIdArb.sample();
             Long productId = productIdArb.sample();
             Integer initialQuantity = initialQuantityArb.sample();
             Integer newQuantity = newQuantityArb.sample();
@@ -139,7 +140,7 @@ class CartInventorySyncPropertyTest {
         reset(inventoryServiceClient);
         
         // 模擬庫存調整成功
-        when(inventoryServiceClient.reserveInventory(anyLong(), any())).thenReturn(createMockReservation(productId, customerId, Math.abs(newQuantity - initialQuantity)));
+        when(inventoryServiceClient.reserveInventory(anyLong(), any())).thenReturn(createMockReservation(productId, customerId.toString(), Math.abs(newQuantity - initialQuantity)));
         doNothing().when(inventoryServiceClient).releaseInventory(anyLong(), any());
         
         // 獲取購物車項目ID
@@ -194,13 +195,13 @@ class CartInventorySyncPropertyTest {
     @Test
     void removingItemsShouldReleaseAllReservedInventory() {
         // 使用 jqwik 生成器創建測試數據
-        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Long> customerIdArb = Arbitraries.longs().between(1L, 10000L);
         Arbitrary<Long> productIdArb = Arbitraries.longs().between(1L, 1000L);
         Arbitrary<Integer> quantityArb = Arbitraries.integers().between(1, 10);
         
         // 運行多次迭代測試
         for (int i = 0; i < 10; i++) {
-            String customerId = customerIdArb.sample();
+            Long customerId = customerIdArb.sample();
             Long productId = productIdArb.sample();
             Integer quantity = quantityArb.sample();
         
@@ -244,12 +245,12 @@ class CartInventorySyncPropertyTest {
     @Test
     void clearingCartShouldReleaseAllInventoryReservations() {
         // 使用 jqwik 生成器創建測試數據
-        Arbitrary<String> customerIdArb = Arbitraries.strings().alpha().ofMinLength(5).ofMaxLength(20);
+        Arbitrary<Long> customerIdArb = Arbitraries.longs().between(1L, 10000L);
         Arbitrary<Integer> itemCountArb = Arbitraries.integers().between(1, 3);
         
         // 運行多次迭代測試
         for (int i = 0; i < 50; i++) {
-            String customerId = customerIdArb.sample();
+            Long customerId = customerIdArb.sample();
             Integer itemCount = itemCountArb.sample();
         
         // 添加多個商品到購物車
@@ -282,13 +283,13 @@ class CartInventorySyncPropertyTest {
     /**
      * 設置購物車和商品項目
      */
-    private void setupCartWithItem(String customerId, Long productId, Integer quantity) {
+    private void setupCartWithItem(Long customerId, Long productId, Integer quantity) {
         // 模擬產品存在
         ProductServiceClient.ProductDTO mockProduct = createMockProduct(productId, "ACTIVE");
         when(productServiceClient.getProduct(productId)).thenReturn(mockProduct);
         
         // 模擬庫存預留成功
-        InventoryServiceClient.ReservationDTO mockReservation = createMockReservation(productId, customerId, quantity);
+        InventoryServiceClient.ReservationDTO mockReservation = createMockReservation(productId, customerId.toString(), quantity);
         when(inventoryServiceClient.reserveInventory(anyLong(), any())).thenReturn(mockReservation);
         
         // 獲取或創建購物車

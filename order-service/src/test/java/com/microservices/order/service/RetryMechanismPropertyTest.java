@@ -8,20 +8,17 @@ import com.microservices.order.dto.CartDTO;
 import feign.FeignException;
 import feign.Request;
 import feign.RequestTemplate;
-import net.jqwik.api.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
@@ -57,20 +54,21 @@ class RetryMechanismPropertyTest {
         InventoryServiceClient.ReservationDTO mockReservation = new InventoryServiceClient.ReservationDTO();
         mockReservation.setId(1L);
         mockReservation.setProductId(1L);
-        mockReservation.setUserId("customer1");
+        mockReservation.setUserId("1");
         mockReservation.setQuantity(2);
         mockReservation.setType("TEMPORARY");
         when(inventoryServiceClient.reserveInventory(anyLong(), any())).thenReturn(mockReservation);
 
         // 創建添加到購物車的請求
-        AddToCartRequest request = new AddToCartRequest("customer1", 1L, 2);
+        AddToCartRequest request = new AddToCartRequest(1L, 2);
+        request.setUserId(1L);
 
         // 執行添加操作
         CartDTO result = cartService.addToCart(request);
 
         // 驗證結果
         assertThat(result).isNotNull();
-        assertThat(result.getUserId()).isEqualTo("customer1");
+        assertThat(result.getUserId()).isEqualTo(1L);
         assertThat(result.getItems()).hasSize(1);
     }
 
@@ -92,21 +90,22 @@ class RetryMechanismPropertyTest {
                 .thenReturn(createMockReservation());
 
         // 創建添加到購物車的請求
-        AddToCartRequest addRequest = new AddToCartRequest("customer1", 1L, 2);
+        AddToCartRequest addRequest = new AddToCartRequest(1L, 2);
+        addRequest.setUserId(1L);
 
         // 執行添加操作 - 應該在重試後成功
         CartDTO result = cartService.addToCart(addRequest);
 
         // 驗證結果
         assertThat(result).isNotNull();
-        assertThat(result.getUserId()).isEqualTo("customer1");
+        assertThat(result.getUserId()).isEqualTo(1L);
     }
 
     private InventoryServiceClient.ReservationDTO createMockReservation() {
         InventoryServiceClient.ReservationDTO reservation = new InventoryServiceClient.ReservationDTO();
         reservation.setId(1L);
         reservation.setProductId(1L);
-        reservation.setUserId("customer1");
+        reservation.setUserId("1");
         reservation.setQuantity(2);
         reservation.setType("TEMPORARY");
         return reservation;

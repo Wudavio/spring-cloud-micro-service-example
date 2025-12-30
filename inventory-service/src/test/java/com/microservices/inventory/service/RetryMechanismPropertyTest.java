@@ -83,7 +83,7 @@ class RetryMechanismPropertyTest {
         AtomicInteger retryExhaustedCount = new AtomicInteger(0);
         
         for (int i = 0; i < 5; i++) {
-            final String customerId = "customer" + i;
+            final Long customerId = (long) (i + 1);
             executor.submit(() -> {
                 try {
                     retryableInventoryService.reserveTemporaryWithRetry(
@@ -120,7 +120,7 @@ class RetryMechanismPropertyTest {
         
         // 先預留所有庫存
         try {
-            inventoryService.reserveTemporary(productId, "customer1", 5, LocalDateTime.now().plusHours(1));
+            inventoryService.reserveTemporary(productId, 1L, 5, LocalDateTime.now().plusHours(1));
         } catch (Exception e) {
             // 忽略
         }
@@ -128,7 +128,7 @@ class RetryMechanismPropertyTest {
         // 嘗試預留超過可用庫存的數量，應該立即失敗（不是重試耗盡）
         assertThatThrownBy(() -> {
             retryableInventoryService.reserveTemporaryWithRetry(
-                productId, "customer2", 10, LocalDateTime.now().plusHours(1));
+                productId, 2L, 10, LocalDateTime.now().plusHours(1));
         }).isInstanceOf(com.microservices.inventory.service.InventoryService.InsufficientStockException.class);
     }
 
@@ -141,7 +141,7 @@ class RetryMechanismPropertyTest {
         // 正常情況下應該成功
         assertThatCode(() -> {
             retryableInventoryService.reserveTemporaryWithRetry(
-                productId, "customer1", 10, LocalDateTime.now().plusHours(1));
+                productId, 1L, 10, LocalDateTime.now().plusHours(1));
         }).doesNotThrowAnyException();
         
         // 驗證預留成功
@@ -153,7 +153,7 @@ class RetryMechanismPropertyTest {
     void testConfirmReservationRetry() {
         // 創建測試庫存和臨時預留
         Long productId = 4L;
-        String customerId = "customer1";
+        Long customerId = 1L;
         inventoryService.createInventory(productId, 100, 10);
         
         try {
@@ -178,7 +178,7 @@ class RetryMechanismPropertyTest {
     void testAdjustTemporaryReservationRetry() {
         // 創建測試庫存和臨時預留
         Long productId = 5L;
-        String customerId = "customer1";
+        Long customerId = 1L;
         inventoryService.createInventory(productId, 100, 10);
         
         try {
@@ -211,7 +211,7 @@ class RetryMechanismPropertyTest {
         AtomicInteger totalReserved = new AtomicInteger(0);
         
         for (int i = 0; i < 10; i++) {
-            final String customerId = "customer" + i;
+            final Long customerId = (long) (i + 1);
             final int quantity = 5;
             executor.submit(() -> {
                 try {

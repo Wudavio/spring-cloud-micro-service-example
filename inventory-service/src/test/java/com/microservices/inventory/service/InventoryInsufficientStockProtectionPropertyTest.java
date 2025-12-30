@@ -60,7 +60,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
             @ForAll("validProductIds") Long productId,
             @ForAll("limitedStockQuantities") Integer availableStock,
             @ForAll("excessiveReservationQuantities") Integer requestedQuantity,
-            @ForAll("validCustomerIds") String customerId) throws Exception {
+            @ForAll("validCustomerIds") Long customerId) throws Exception {
 
         // 確保請求數量大於可用庫存
         Assume.that(requestedQuantity > availableStock);
@@ -81,7 +81,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
                 .thenReturn(Optional.of(inventory));
 
         // 設定預留記錄存儲庫的回應 - 沒有現有預留
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 productId, customerId, ReservationType.TEMPORARY))
                 .thenReturn(new ArrayList<>());
 
@@ -123,7 +123,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
     void shouldAllowReservationWhenExactlyEqualToAvailableStock(
             @ForAll("validProductIds") Long productId,
             @ForAll("validStockQuantities") Integer availableStock,
-            @ForAll("validCustomerIds") String customerId) throws Exception {
+            @ForAll("validCustomerIds") Long customerId) throws Exception {
 
         // 重置 mock 物件
         reset(inventoryRepository, reservationRepository, lockManager, restTemplate, environment);
@@ -143,7 +143,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
                 .thenReturn(inventory);
 
         // 設定預留記錄存儲庫的回應
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 productId, customerId, ReservationType.TEMPORARY))
                 .thenReturn(new ArrayList<>());
         when(reservationRepository.save(any(InventoryReservation.class)))
@@ -170,7 +170,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
         // 驗證預留成功
         assertThat(result).isNotNull();
         assertThat(result.getProductId()).isEqualTo(productId);
-        assertThat(result.getCustomerId()).isEqualTo(customerId);
+        assertThat(result.getUserId()).isEqualTo(customerId);
         assertThat(result.getQuantity()).isEqualTo(availableStock);
         assertThat(result.getType()).isEqualTo(ReservationType.TEMPORARY);
 
@@ -194,7 +194,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
             @ForAll("limitedStockQuantities") Integer availableStock,
             @ForAll("validStockQuantities") Integer temporaryReserved,
             @ForAll("validReservationQuantities") Integer requestedQuantity,
-            @ForAll("validCustomerIds") String customerId) throws Exception {
+            @ForAll("validCustomerIds") Long customerId) throws Exception {
 
         // 確保請求數量大於實際可用庫存（考慮已預留的部分）
         int actualAvailable = Math.max(0, availableStock - temporaryReserved);
@@ -214,7 +214,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
                 .thenReturn(Optional.of(inventory));
 
         // 設定預留記錄存儲庫的回應
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 productId, customerId, ReservationType.TEMPORARY))
                 .thenReturn(new ArrayList<>());
 
@@ -254,7 +254,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
             @ForAll("validProductIds") Long productId,
             @ForAll("limitedStockQuantities") Integer availableStock,
             @ForAll("validReservationQuantities") Integer currentReservation,
-            @ForAll("validCustomerIds") String customerId) throws Exception {
+            @ForAll("validCustomerIds") Long customerId) throws Exception {
 
         // 計算新的預留數量，確保增加的部分超過可用庫存
         int increaseAmount = availableStock + 1; // 超過可用庫存
@@ -280,7 +280,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
                 .thenReturn(Optional.of(inventory));
 
         // 設定預留記錄存儲庫的回應
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 productId, customerId, ReservationType.TEMPORARY))
                 .thenReturn(java.util.List.of(existingReservation));
 
@@ -322,7 +322,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
     void shouldRejectAnyReservationWhenZeroStock(
             @ForAll("validProductIds") Long productId,
             @ForAll("validReservationQuantities") Integer requestedQuantity,
-            @ForAll("validCustomerIds") String customerId) throws Exception {
+            @ForAll("validCustomerIds") Long customerId) throws Exception {
 
         // 確保請求數量大於0
         Assume.that(requestedQuantity > 0);
@@ -340,7 +340,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
                 .thenReturn(Optional.of(inventory));
 
         // 設定預留記錄存儲庫的回應
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 productId, customerId, ReservationType.TEMPORARY))
                 .thenReturn(new ArrayList<>());
 
@@ -399,11 +399,7 @@ class InventoryInsufficientStockProtectionPropertyTest {
     }
 
     @Provide
-    Arbitrary<String> validCustomerIds() {
-        return Arbitraries.strings()
-                .withCharRange('a', 'z')
-                .ofMinLength(5)
-                .ofMaxLength(20)
-                .map(s -> "customer_" + s);
+    Arbitrary<Long> validCustomerIds() {
+        return Arbitraries.longs().between(1L, 10000L);
     }
 }

@@ -72,7 +72,7 @@ management:
 # Swagger OpenAPI 配置
 springdoc:
   api-docs:
-    path: /api-docs
+    path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
     enabled: true

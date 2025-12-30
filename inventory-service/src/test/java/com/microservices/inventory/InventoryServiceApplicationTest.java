@@ -66,7 +66,7 @@ class InventoryServiceApplicationTest {
         // 測試預留記錄實體的基本 CRUD 操作
         InventoryReservation reservation = new InventoryReservation(
             1L, 
-            "customer123", 
+            123L, 
             5, 
             ReservationType.TEMPORARY, 
             LocalDateTime.now().plusHours(1)
@@ -76,12 +76,12 @@ class InventoryServiceApplicationTest {
         InventoryReservation saved = reservationRepository.save(reservation);
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getProductId()).isEqualTo(1L);
-        assertThat(saved.getCustomerId()).isEqualTo("customer123");
+        assertThat(saved.getUserId()).isEqualTo(123L);
         assertThat(saved.getQuantity()).isEqualTo(5);
         assertThat(saved.getType()).isEqualTo(ReservationType.TEMPORARY);
         
         // 查詢預留記錄
-        var found = reservationRepository.findByProductIdAndCustomerId(1L, "customer123");
+        var found = reservationRepository.findByProductIdAndUserId(1L, 123L);
         assertThat(found).hasSize(1);
         assertThat(found.get(0).getQuantity()).isEqualTo(5);
         

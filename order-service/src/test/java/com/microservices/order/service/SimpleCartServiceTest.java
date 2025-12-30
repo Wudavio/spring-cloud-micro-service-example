@@ -5,8 +5,6 @@ import com.microservices.order.client.InventoryServiceClient;
 import com.microservices.order.client.ProductServiceClient;
 import com.microservices.order.dto.AddToCartRequest;
 import com.microservices.order.dto.CartDTO;
-import com.microservices.order.repository.CartRepository;
-import com.microservices.order.repository.CartItemRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -59,20 +57,21 @@ class SimpleCartServiceTest {
         InventoryServiceClient.ReservationDTO mockReservation = new InventoryServiceClient.ReservationDTO();
         mockReservation.setId(1L);
         mockReservation.setProductId(1L);
-        mockReservation.setUserId("customer1");
+        mockReservation.setUserId("1");
         mockReservation.setQuantity(2);
         mockReservation.setType("TEMPORARY");
         when(inventoryServiceClient.reserveInventory(anyLong(), any())).thenReturn(mockReservation);
         
         // 創建添加到購物車的請求
-        AddToCartRequest request = new AddToCartRequest("customer1", 1L, 2);
+        AddToCartRequest request = new AddToCartRequest(1L, 2);
+        request.setUserId(1L);
         
         // 執行添加操作
         CartDTO result = cartService.addToCart(request);
         
         // 驗證結果
         assertThat(result).isNotNull();
-        assertThat(result.getUserId()).isEqualTo("customer1");
+        assertThat(result.getUserId()).isEqualTo(1L);
         assertThat(result.getItems()).hasSize(1);
         assertThat(result.getItems().get(0).getProductId()).isEqualTo(1L);
         assertThat(result.getItems().get(0).getQuantity()).isEqualTo(2);

@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
  * - 需求 3.4: 庫存不足保護機制
  */
 @RestController
-@RequestMapping("/api/inventory")
+@RequestMapping("/inventory")
 @Tag(name = "庫存管理", description = "庫存查詢、預留、釋放、確認和管理功能")
 public class InventoryController {
     
@@ -101,7 +101,7 @@ public class InventoryController {
     })
     @GetMapping("/{productId}")
     public ResponseEntity<InventoryDTO> getInventory(
-            @Parameter(description = "產品 ID") @PathVariable Long productId) {
+            @Parameter(description = "產品 ID") @PathVariable("productId") Long productId) {
         logger.info("查詢產品庫存: productId={}", productId);
         
         Optional<Inventory> inventory = inventoryService.findByProductId(productId);

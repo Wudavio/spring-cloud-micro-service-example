@@ -64,7 +64,7 @@ class InventoryReservationAtomicityPropertyTest {
             @ForAll("validProductIds") Long productId,
             @ForAll("validStockQuantities") Integer initialStock,
             @ForAll("validReservationQuantities") Integer reservationQuantity,
-            @ForAll("validCustomerIds") String customerId) throws Exception {
+            @ForAll("validCustomerIds") Long customerId) throws Exception {
 
         // 重置 mock 物件
         reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
@@ -81,7 +81,7 @@ class InventoryReservationAtomicityPropertyTest {
                 .thenReturn(inventory);
 
         // 設定預留記錄存儲庫的回應
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 productId, customerId, ReservationType.TEMPORARY))
                 .thenReturn(new ArrayList<>());
         when(reservationRepository.save(any(InventoryReservation.class)))
@@ -109,7 +109,7 @@ class InventoryReservationAtomicityPropertyTest {
             // 驗證預留記錄
             assertThat(result).isNotNull();
             assertThat(result.getProductId()).isEqualTo(productId);
-            assertThat(result.getCustomerId()).isEqualTo(customerId);
+            assertThat(result.getUserId()).isEqualTo(customerId);
             assertThat(result.getQuantity()).isEqualTo(reservationQuantity);
             assertThat(result.getType()).isEqualTo(ReservationType.TEMPORARY);
 
@@ -180,7 +180,7 @@ class InventoryReservationAtomicityPropertyTest {
                 });
 
         // 設定預留記錄存儲庫的回應
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 anyLong(), any(), eq(ReservationType.TEMPORARY)))
                 .thenReturn(new ArrayList<>());
         when(reservationRepository.save(any(InventoryReservation.class)))
@@ -205,7 +205,7 @@ class InventoryReservationAtomicityPropertyTest {
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(1);
         
         for (int i = 0; i < customerCount; i++) {
-            String customerId = "customer" + i;
+            Long customerId = (long) (i + 1);
             int reserveQuantity = 1; // 每個客戶預留1個單位
             
             CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> {
@@ -253,7 +253,7 @@ class InventoryReservationAtomicityPropertyTest {
             @ForAll("validStockQuantities") Integer initialStock,
             @ForAll("validReservationQuantities") Integer tempReservedQuantity,
             @ForAll("validReservationQuantities") Integer confirmQuantity,
-            @ForAll("validCustomerIds") String customerId) throws Exception {
+            @ForAll("validCustomerIds") Long customerId) throws Exception {
 
         // 重置 mock 物件
         reset(inventoryRepository, reservationRepository, lockManager, restTemplate);
@@ -277,7 +277,7 @@ class InventoryReservationAtomicityPropertyTest {
                 .thenReturn(inventory);
 
         // 設定預留記錄存儲庫的回應
-        when(reservationRepository.findByProductIdAndCustomerIdAndType(
+        when(reservationRepository.findByProductIdAndUserIdAndType(
                 productId, customerId, ReservationType.TEMPORARY))
                 .thenReturn(List.of(tempReservation));
         when(reservationRepository.save(any(InventoryReservation.class)))
@@ -303,7 +303,7 @@ class InventoryReservationAtomicityPropertyTest {
             // 驗證確認預留記錄
             assertThat(result).isNotNull();
             assertThat(result.getProductId()).isEqualTo(productId);
-            assertThat(result.getCustomerId()).isEqualTo(customerId);
+            assertThat(result.getUserId()).isEqualTo(customerId);
             assertThat(result.getQuantity()).isEqualTo(confirmQuantity);
             assertThat(result.getType()).isEqualTo(ReservationType.CONFIRMED);
 
@@ -366,11 +366,7 @@ class InventoryReservationAtomicityPropertyTest {
     }
 
     @Provide
-    Arbitrary<String> validCustomerIds() {
-        return Arbitraries.strings()
-                .withCharRange('a', 'z')
-                .ofMinLength(5)
-                .ofMaxLength(20)
-                .map(s -> "customer_" + s);
+    Arbitrary<Long> validCustomerIds() {
+        return Arbitraries.longs().between(1L, 10000L);
     }
 }

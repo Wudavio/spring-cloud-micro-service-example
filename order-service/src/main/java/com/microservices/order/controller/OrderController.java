@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.*;
  * 訂單控制器
  */
 @RestController
-@RequestMapping("/api/orders")
+@RequestMapping("/orders")
 @CrossOrigin(origins = "*")
 @Tag(name = "訂單管理", description = "訂單相關的 API 操作")
 public class OrderController {
