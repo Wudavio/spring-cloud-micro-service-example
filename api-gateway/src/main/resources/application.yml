@@ -92,6 +92,12 @@ management:
       show-details: always
     gateway:
       enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+
+# Zipkin 分散式追蹤配置
+management.zipkin.tracing.endpoint: http://zipkin:9411/api/v2/spans
 
 # Swagger 配置
 springdoc:
