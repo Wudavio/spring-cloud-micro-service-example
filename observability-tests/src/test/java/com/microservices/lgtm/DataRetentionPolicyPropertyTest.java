@@ -27,10 +27,10 @@ import java.nio.file.Paths;
  */
 public class DataRetentionPolicyPropertyTest {
 
-    private static final String RETENTION_CONFIG_PATH = "otel-agent/data-retention-config.yaml";
-    private static final String MIMIR_CONFIG_PATH = "mimir/mimir.yaml";
-    private static final String TEMPO_CONFIG_PATH = "tempo/tempo.yaml";
-    private static final String LOKI_CONFIG_PATH = "loki/loki.yaml";
+    private static final String RETENTION_CONFIG_PATH = "../otel-agent/data-retention-config.yaml";
+    private static final String MIMIR_CONFIG_PATH = "../mimir/mimir.yaml";
+    private static final String TEMPO_CONFIG_PATH = "../tempo/tempo.yaml";
+    private static final String LOKI_CONFIG_PATH = "../loki/loki.yaml";
 
     @BeforeEach
     void setUp() {

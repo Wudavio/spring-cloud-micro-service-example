@@ -30,7 +30,7 @@ public class DynamicConfigurationResponsivenessPropertyTest {
     @BeforeEach
     void setUp() throws IOException {
         // 設定配置熱重載腳本路徑
-        configHotReloadScript = Path.of("otel-agent/config-management/config-hot-reload.sh").toAbsolutePath();
+        configHotReloadScript = Path.of("../otel-agent/config-management/config-hot-reload.sh").toAbsolutePath();
         
         // 創建臨時配置目錄
         tempConfigDir = Files.createTempDirectory("otel-config-test");

@@ -25,8 +25,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("Grafana 儀表板配置驗證測試")
 public class GrafanaDashboardConfigurationTest {
 
-    private static final String GRAFANA_DASHBOARDS_PATH = "grafana/dashboards";
-    private static final String GRAFANA_PROVISIONING_PATH = "grafana/provisioning/dashboards";
+    private static final String GRAFANA_DASHBOARDS_PATH = "../grafana/dashboards";
+    private static final String GRAFANA_PROVISIONING_PATH = "../grafana/provisioning/dashboards";
     
     private ObjectMapper objectMapper;
     private Path projectRoot;
@@ -36,7 +36,7 @@ public class GrafanaDashboardConfigurationTest {
         objectMapper = new ObjectMapper();
         // 從測試目錄向上找到專案根目錄
         projectRoot = Paths.get("").toAbsolutePath();
-        while (!Files.exists(projectRoot.resolve("docker-compose.yml"))) {
+        while (!Files.exists(projectRoot.resolve("../docker-compose.yml"))) {
             projectRoot = projectRoot.getParent();
             if (projectRoot == null) {
                 fail("無法找到專案根目錄");

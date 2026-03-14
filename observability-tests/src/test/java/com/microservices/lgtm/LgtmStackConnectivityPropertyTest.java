@@ -99,7 +99,7 @@ public class LgtmStackConnectivityPropertyTest {
      */
     @Test
     void dockerComposeConfigurationShouldBeValid() throws Exception {
-        java.io.File dockerComposeFile = new java.io.File("docker-compose.yml");
+        java.io.File dockerComposeFile = new java.io.File("../docker-compose.yml");
         
         assertThat(dockerComposeFile.exists())
                 .as("docker-compose.yml 檔案應該存在")
@@ -149,14 +149,14 @@ public class LgtmStackConnectivityPropertyTest {
     @Provide
     Arbitrary<String> configFiles() {
         return Arbitraries.of(
-                "otel-collector-config.yaml",
-                "mimir/mimir.yaml",
-                "tempo/tempo.yaml",
-                "loki/loki.yaml",
-                "grafana/grafana.ini",
-                "grafana/provisioning/datasources/datasources.yaml",
-                "grafana/provisioning/dashboards/dashboards.yaml",
-                "grafana/dashboards/microservices-overview.json"
+                "../otel-collector-config.yaml",
+                "../mimir/mimir.yaml",
+                "../tempo/tempo.yaml",
+                "../loki/loki.yaml",
+                "../grafana/grafana.ini",
+                "../grafana/provisioning/datasources/datasources.yaml",
+                "../grafana/provisioning/dashboards/dashboards.yaml",
+                "../grafana/dashboards/microservices-overview.json"
         );
     }
 }

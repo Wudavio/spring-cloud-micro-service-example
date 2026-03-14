@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class SelfMonitoringMetricsPropertyTest {
 
-    private static final String OTEL_COLLECTOR_CONFIG_PATH = "otel-collector-config.yaml";
+    private static final String OTEL_COLLECTOR_CONFIG_PATH = "../otel-collector-config.yaml";
     private static final String COLLECTOR_METRICS_ENDPOINT = "http://localhost:8889/metrics";
     private static final String COLLECTOR_HEALTH_ENDPOINT = "http://localhost:13133/health";
     private static final String COLLECTOR_ZPAGES_ENDPOINT = "http://localhost:55679";
@@ -461,11 +461,11 @@ public class SelfMonitoringMetricsPropertyTest {
     @Provide
     Arbitrary<String> selfMonitoringConfigFiles() {
         return Arbitraries.of(
-                "otel-agent/self-monitoring-health-check.sh",
-                "otel-agent/microservice-self-monitoring.properties",
-                "otel-agent/self-monitoring-alerts.yaml",
-                "grafana/dashboards/otel-collector-self-monitoring.json",
-                "otel-agent/circuit-breaker-config.yaml"
+                "../otel-agent/self-monitoring-health-check.sh",
+                "../otel-agent/microservice-self-monitoring.properties",
+                "../otel-agent/self-monitoring-alerts.yaml",
+                "../grafana/dashboards/otel-collector-self-monitoring.json",
+                "../otel-agent/circuit-breaker-config.yaml"
         );
     }
 }

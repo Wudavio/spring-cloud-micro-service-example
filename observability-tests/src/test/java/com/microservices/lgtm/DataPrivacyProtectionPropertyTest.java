@@ -30,8 +30,8 @@ import java.time.Instant;
 @ActiveProfiles("test")
 public class DataPrivacyProtectionPropertyTest {
 
-    private static final String OTEL_CONFIG_PATH = "otel-collector-config.yaml";
-    private static final String PRIVACY_CONFIG_PATH = "otel-agent/data-privacy-config.yaml";
+    private static final String OTEL_CONFIG_PATH = "../otel-collector-config.yaml";
+    private static final String PRIVACY_CONFIG_PATH = "../otel-agent/data-privacy-config.yaml";
     
     // 敏感資料模式定義
     private static final List<Pattern> SENSITIVE_PATTERNS = Arrays.asList(

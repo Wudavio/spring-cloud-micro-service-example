@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class NonBlockingExportPropertyTest {
 
-    private static final String OTEL_COLLECTOR_CONFIG_PATH = "otel-collector-config.yaml";
+    private static final String OTEL_COLLECTOR_CONFIG_PATH = "../otel-collector-config.yaml";
     private static final int MAX_RESPONSE_TIME_MS = 5000; // 最大響應時間 5 秒
     private static final int CONCURRENT_REQUESTS = 50;
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
@@ -274,7 +274,7 @@ public class NonBlockingExportPropertyTest {
      */
     @Test
     void circuitBreakerConfigurationShouldExist() throws IOException {
-        Path configPath = Paths.get("otel-agent/circuit-breaker-config.yaml");
+        Path configPath = Paths.get("../otel-agent/circuit-breaker-config.yaml");
         
         if (configPath.toFile().exists()) {
             String content = Files.readString(configPath);
@@ -371,14 +371,14 @@ public class NonBlockingExportPropertyTest {
     @Provide
     Arbitrary<String> otelConfigFiles() {
         return Arbitraries.of(
-                "otel-agent/non-blocking-export-config.env",
-                "otel-agent/api-gateway.env",
-                "otel-agent/auth-service.env",
-                "otel-agent/config-server.env",
-                "otel-agent/eureka-server.env",
-                "otel-agent/inventory-service.env",
-                "otel-agent/order-service.env",
-                "otel-agent/product-service.env"
+                "../otel-agent/non-blocking-export-config.env",
+                "../otel-agent/api-gateway.env",
+                "../otel-agent/auth-service.env",
+                "../otel-agent/config-server.env",
+                "../otel-agent/eureka-server.env",
+                "../otel-agent/inventory-service.env",
+                "../otel-agent/order-service.env",
+                "../otel-agent/product-service.env"
         );
     }
 }

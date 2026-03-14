@@ -35,8 +35,8 @@ public class ConfigurationFaultTolerancePropertyTest {
     @BeforeEach
     void setUp() throws IOException {
         // 設定配置管理腳本路徑
-        configValidatorScript = Path.of("otel-agent/config-management/config-validator.sh").toAbsolutePath();
-        configFallbackScript = Path.of("otel-agent/config-management/config-fallback.sh").toAbsolutePath();
+        configValidatorScript = Path.of("../otel-agent/config-management/config-validator.sh").toAbsolutePath();
+        configFallbackScript = Path.of("../otel-agent/config-management/config-fallback.sh").toAbsolutePath();
         
         // 確保腳本存在且可執行
         if (!Files.exists(configValidatorScript)) {

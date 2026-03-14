@@ -104,7 +104,7 @@ public class LogLevelFilteringPropertyTest {
      */
     @Test
     void otelCollectorShouldHaveLogFilterConfiguration() throws Exception {
-        java.io.File collectorConfig = new java.io.File("otel-collector-config.yaml");
+        java.io.File collectorConfig = new java.io.File("../otel-collector-config.yaml");
         
         assertThat(collectorConfig.exists())
                 .as("OpenTelemetry Collector 配置檔案應該存在")
@@ -136,7 +136,7 @@ public class LogLevelFilteringPropertyTest {
     void servicesShouldHaveEnvironmentSpecificLogConfig(@ForAll("serviceNames") String serviceName,
                                                         @ForAll("environments") String environment) throws Exception {
         
-        String configPath = serviceName + "/src/main/resources/application.yml";
+        String configPath = "../" + serviceName + "/src/main/resources/application.yml";
         java.io.File configFile = new java.io.File(configPath);
         
         if (configFile.exists()) {
@@ -234,7 +234,7 @@ public class LogLevelFilteringPropertyTest {
     @Property(tries = 10)
     @Label("功能: opentelemetry-lgtm-integration, 屬性 10: Logback 配置完整性")
     void logbackConfigurationShouldExist(@ForAll("serviceNames") String serviceName) throws Exception {
-        String logbackConfigPath = serviceName + "/src/main/resources/logback-spring.xml";
+        String logbackConfigPath = "../" + serviceName + "/src/main/resources/logback-spring.xml";
         java.io.File logbackConfig = new java.io.File(logbackConfigPath);
         
         if (logbackConfig.exists()) {

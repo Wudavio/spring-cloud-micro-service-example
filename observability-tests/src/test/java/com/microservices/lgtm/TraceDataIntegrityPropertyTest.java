@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class TraceDataIntegrityPropertyTest {
 
-    private static final String OTEL_AGENT_DIR = "otel-agent";
+    private static final String OTEL_AGENT_DIR = "../otel-agent";
     private static final String OTEL_CONFIG_FILE = "otel-config.properties";
 
     @BeforeEach
@@ -172,7 +172,7 @@ public class TraceDataIntegrityPropertyTest {
     @Property(tries = 7)
     @Label("功能: opentelemetry-lgtm-integration, 屬性 2: Dockerfile 追蹤配置一致性")
     void dockerfileTracingConfigurationShouldBeConsistent(@ForAll("microserviceNames") String serviceName) throws IOException {
-        File dockerFile = new File(serviceName + "/Dockerfile");
+        File dockerFile = new File("../" + serviceName + "/Dockerfile");
         
         if (!dockerFile.exists()) {
             // 如果 Dockerfile 不存在，跳過此測試

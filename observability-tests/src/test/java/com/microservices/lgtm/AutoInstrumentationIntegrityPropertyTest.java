@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class AutoInstrumentationIntegrityPropertyTest {
 
-    private static final String OTEL_AGENT_DIR = "otel-agent";
+    private static final String OTEL_AGENT_DIR = "../otel-agent";
     private static final String OTEL_JAR_FILE = "opentelemetry-javaagent.jar";
     private static final String OTEL_CONFIG_FILE = "otel-config.properties";
 

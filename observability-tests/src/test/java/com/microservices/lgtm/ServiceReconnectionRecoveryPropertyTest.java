@@ -37,7 +37,7 @@ public class ServiceReconnectionRecoveryPropertyTest {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
-    private static final String OTEL_COLLECTOR_CONFIG_PATH = "otel-collector-config.yaml";
+    private static final String OTEL_COLLECTOR_CONFIG_PATH = "../otel-collector-config.yaml";
     private static final int CONNECTION_TIMEOUT_MS = 30000;
     private static final int RETRY_INTERVAL_MS = 5000;
 
@@ -198,7 +198,7 @@ public class ServiceReconnectionRecoveryPropertyTest {
     @Property(tries = 10)
     @Label("功能: opentelemetry-lgtm-integration, 屬性 5: 重連配置一致性")
     void reconnectionConfigurationShouldBeConsistent(@ForAll("serviceNames") String serviceName) throws IOException {
-        String configFile = serviceName + "/otel-config.properties";
+        String configFile = "../" + serviceName + "/otel-config.properties";
         Path configPath = Paths.get(configFile);
         
         if (!configPath.toFile().exists()) {

@@ -3,8 +3,6 @@ package com.microservices.lgtm;
 import net.jqwik.api.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestPropertySource;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,16 +15,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 配置環境適應性屬性測試
- * 
+ *
  * 功能: opentelemetry-lgtm-integration, 屬性 11: 配置環境適應性
  * 驗證: 需求 6.1, 6.2
- * 
+ *
  * 屬性: 對於任何環境變數配置的 LGTM 端點，系統應該使用該端點進行數據導出
  */
-@SpringBootTest(classes = com.microservices.eureka.EurekaServerApplication.class)
-@TestPropertySource(properties = {
-    "logging.level.com.microservices.lgtm=DEBUG"
-})
 public class ConfigurationEnvironmentAdaptabilityPropertyTest {
 
     private Path projectRoot;
