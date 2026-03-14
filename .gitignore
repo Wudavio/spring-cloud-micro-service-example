@@ -53,3 +53,9 @@ logs/
 # Local test/debug env files (keep otel-agent service env files)
 broken-config.env
 test-config*.env
+
+# Local-only docs (not for repo)
+SERVICE_ISSUES.md
+
+# API keys and secrets
+api-keys/
