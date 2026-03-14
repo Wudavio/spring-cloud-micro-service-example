@@ -24,10 +24,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class SamplingStrategyConsistencyPropertyTest {
 
-    private static final String OTEL_AGENT_DIR = "../otel-agent";
+    private static final String OTEL_AGENT_DIR = "otel-agent";
     private static final String OTEL_CONFIG_FILE = "otel-config.properties";
     private static final String SAMPLING_STRATEGIES_FILE = "sampling-strategies.json";
-    private static final String OTEL_COLLECTOR_CONFIG = "../otel-collector-config.yaml";
+    private static final String OTEL_COLLECTOR_CONFIG = "otel-collector-config.yaml";
 
     @BeforeEach
     void setUp() {

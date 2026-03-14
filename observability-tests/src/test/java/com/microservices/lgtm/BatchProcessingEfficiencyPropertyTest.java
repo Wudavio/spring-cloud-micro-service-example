@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class BatchProcessingEfficiencyPropertyTest {
 
-    private static final String OTEL_COLLECTOR_CONFIG_PATH = "../otel-collector-config.yaml";
+    private static final String OTEL_COLLECTOR_CONFIG_PATH = "otel-collector-config.yaml";
     private static final int MIN_BATCH_SIZE = 100;
     private static final int MAX_BATCH_TIMEOUT_MS = 60000;
     private static final int MIN_EXPORT_INTERVAL_MS = 5000;
@@ -134,7 +134,7 @@ public class BatchProcessingEfficiencyPropertyTest {
     @Property(tries = 10)
     @Label("功能: opentelemetry-lgtm-integration, 屬性 4: 批次配置一致性")
     void batchConfigurationShouldBeConsistentAcrossServices(@ForAll("serviceNames") String serviceName) throws IOException {
-        String configFile = "../" + serviceName + "/otel-config.properties";
+        String configFile = serviceName + "/otel-config.properties";
         Path configPath = Paths.get(configFile);
         
         if (!configPath.toFile().exists()) {
@@ -253,13 +253,13 @@ public class BatchProcessingEfficiencyPropertyTest {
     @Provide
     Arbitrary<String> serviceConfigFiles() {
         return Arbitraries.of(
-                "../product-service/otel-config.properties",
-                "../order-service/otel-config.properties",
-                "../inventory-service/otel-config.properties",
-                "../auth-service/otel-config.properties",
-                "../api-gateway/otel-config.properties",
-                "../eureka-server/otel-config.properties",
-                "../config-server/otel-config.properties"
+                "product-service/otel-config.properties",
+                "order-service/otel-config.properties",
+                "inventory-service/otel-config.properties",
+                "auth-service/otel-config.properties",
+                "api-gateway/otel-config.properties",
+                "eureka-server/otel-config.properties",
+                "config-server/otel-config.properties"
         );
     }
 

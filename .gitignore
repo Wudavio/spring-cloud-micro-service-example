@@ -45,3 +45,11 @@ Thumbs.db
 
 # JQwik database
 .jqwik-database
+
+# Service runtime logs
+logs/
+*/logs/
+
+# Local test/debug env files (keep otel-agent service env files)
+broken-config.env
+test-config*.env
