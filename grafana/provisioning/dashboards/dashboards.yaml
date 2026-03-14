@@ -1,0 +1,15 @@
+# Grafana 儀表板配置
+
+apiVersion: 1
+
+providers:
+  # 微服務儀表板提供者
+  - name: 'microservices-dashboards'
+    orgId: 1
+    folder: 'Microservices'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

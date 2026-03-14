@@ -1,0 +1,130 @@
+# Loki 配置檔案 - 簡化版本，相容最新版本
+# 用於存儲 OpenTelemetry 日誌資料
+
+# 認證配置
+auth_enabled: false
+
+# 服務器配置
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+  log_level: info
+
+# 通用配置
+common:
+  path_prefix: /data/loki
+  storage:
+    filesystem:
+      chunks_directory: /data/loki/chunks
+      rules_directory: /data/loki/rules
+  replication_factor: 1
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: inmemory
+
+# 攝取器配置
+ingester:
+  lifecycler:
+    address: 127.0.0.1
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+    final_sleep: 0s
+  chunk_idle_period: 1h
+  max_chunk_age: 1h
+  chunk_target_size: 1048576
+  chunk_retain_period: 30s
+  wal:
+    enabled: true
+    dir: /data/loki/wal
+    checkpoint_duration: 5m
+    flush_on_shutdown: true
+    replay_memory_ceiling: 1GB
+
+# 查詢器配置
+querier:
+  query_ingesters_within: 3h
+  tail_max_duration: 1h
+  extra_query_delay: 0s
+  max_concurrent: 20
+
+# 分發器配置
+distributor:
+  ring:
+    kvstore:
+      store: inmemory
+
+# 模式配置
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+# 存儲配置
+storage_config:
+  tsdb_shipper:
+    active_index_directory: /data/loki/tsdb-shipper-active
+    cache_location: /data/loki/tsdb-shipper-cache
+    cache_ttl: 24h
+  filesystem:
+    directory: /data/loki/chunks
+
+# 限制配置
+limits_config:
+  ingestion_rate_mb: 4
+  ingestion_burst_size_mb: 6
+  max_streams_per_user: 10000
+  max_line_size: 256000
+  max_query_parallelism: 32
+  max_entries_limit_per_query: 5000
+  max_streams_matchers_per_query: 1000
+  max_concurrent_tail_requests: 10
+  max_label_names_per_series: 30
+  max_label_name_length: 1024
+  max_label_value_length: 4096
+  retention_period: 744h  # 31 days
+
+# 壓縮器配置
+compactor:
+  working_directory: /data/loki/tsdb-shipper-compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  retention_delete_worker_count: 150
+  delete_request_store: filesystem
+  delete_request_cancel_period: 24h
+  max_compaction_parallelism: 1
+
+# 表管理器配置
+table_manager:
+  retention_deletes_enabled: true
+  retention_period: 744h
+
+# 統治者配置
+ruler:
+  storage:
+    type: local
+    local:
+      directory: /data/loki/rules
+  rule_path: /data/loki/rules-temp
+  ring:
+    kvstore:
+      store: inmemory
+  enable_api: true
+
+# 成員列表配置
+memberlist:
+  abort_if_cluster_join_fails: false
+  bind_port: 7946
+  join_members: []
+
+# 分析器配置
+analytics:
+  reporting_enabled: false

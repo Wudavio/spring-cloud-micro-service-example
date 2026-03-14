@@ -31,6 +31,68 @@ spring:
 server:
   port: 8081
 
+# 日誌配置 - 結構化日誌
+logging:
+  level:
+    com.microservices.product: INFO
+    org.springframework: WARN
+    org.hibernate: WARN
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+  file:
+    name: logs/product-service.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB
+
+# 環境特定配置
+---
+spring:
+  config:
+    activate:
+      on-profile: development
+logging:
+  level:
+    com.microservices.product: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    io.opentelemetry: DEBUG
+    root: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: testing
+logging:
+  level:
+    com.microservices.product: DEBUG
+    org.springframework: INFO
+    org.hibernate: INFO
+    io.opentelemetry: INFO
+    root: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: production
+logging:
+  level:
+    com.microservices.product: INFO
+    org.springframework: WARN
+    org.hibernate: WARN
+    io.opentelemetry: WARN
+    root: WARN
+  file:
+    name: /var/log/product-service/product-service.log
+
 eureka:
   client:
     service-url:
@@ -51,9 +113,6 @@ management:
   tracing:
     sampling:
       probability: 1.0
-  zipkin:
-    tracing:
-      endpoint: http://zipkin:9411/api/v2/spans
 
 # Swagger OpenAPI 配置
 springdoc:

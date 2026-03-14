@@ -1,0 +1,137 @@
+# OpenTelemetry 熔斷器配置
+# 用於實作導出失敗時的熔斷機制
+
+# 熔斷器配置參數
+circuit_breaker:
+  # 失敗閾值 - 連續失敗多少次後觸發熔斷
+  failure_threshold: 5
+  
+  # 成功閾值 - 半開狀態下連續成功多少次後關閉熔斷器
+  success_threshold: 3
+  
+  # 熔斷器超時 - 熔斷器開啟後多久嘗試半開
+  timeout: 60s
+  
+  # 最大請求數 - 半開狀態下允許的最大請求數
+  max_requests: 10
+
+# 重試配置
+retry_config:
+  # 是否啟用重試
+  enabled: true
+  
+  # 初始重試間隔
+  initial_interval: 1s
+  
+  # 最大重試間隔
+  max_interval: 30s
+  
+  # 最大重試時間
+  max_elapsed_time: 300s
+  
+  # 重試倍數
+  multiplier: 2.0
+  
+  # 隨機化因子
+  randomization_factor: 0.1
+  
+  # 最大重試次數
+  max_attempts: 5
+
+# 佇列配置
+queue_config:
+  # 是否啟用佇列
+  enabled: true
+  
+  # 佇列大小
+  queue_size: 5000
+  
+  # 消費者數量
+  num_consumers: 10
+  
+  # 佇列滿時的行為 (drop_oldest, drop_newest, block)
+  queue_full_behavior: drop_oldest
+
+# 背壓控制配置
+backpressure_config:
+  # 啟用背壓控制
+  enabled: true
+  
+  # 記憶體使用閾值 (百分比)
+  memory_threshold: 80
+  
+  # CPU 使用閾值 (百分比)
+  cpu_threshold: 80
+  
+  # 背壓觸發時的動作
+  actions:
+    - reduce_sampling_rate
+    - increase_batch_timeout
+    - drop_low_priority_data
+
+# 監控配置
+monitoring:
+  # 指標收集間隔
+  metrics_interval: 30s
+  
+  # 健康檢查間隔
+  health_check_interval: 10s
+  
+  # 告警閾值
+  alert_thresholds:
+    # 導出失敗率閾值
+    export_failure_rate: 0.1
+    
+    # 佇列使用率閾值
+    queue_usage_rate: 0.8
+    
+    # 記憶體使用率閾值
+    memory_usage_rate: 0.9
+
+# 降級策略配置
+fallback_config:
+  # 啟用降級策略
+  enabled: true
+  
+  # 降級動作
+  actions:
+    # 將數據寫入本地檔案
+    - type: file_backup
+      path: /tmp/otel-fallback
+      max_file_size: 100MB
+      max_files: 10
+    
+    # 減少取樣率
+    - type: reduce_sampling
+      target_rate: 0.01
+    
+    # 丟棄非關鍵數據
+    - type: drop_data
+      priority: low
+
+# 恢復策略配置
+recovery_config:
+  # 自動恢復檢查間隔
+  check_interval: 30s
+  
+  # 恢復條件
+  conditions:
+    # 後端服務可用
+    - backend_available: true
+    
+    # 錯誤率低於閾值
+    - error_rate_below: 0.05
+    
+    # 連續成功次數
+    - consecutive_successes: 5
+  
+  # 恢復動作
+  actions:
+    # 逐步增加取樣率
+    - type: gradual_sampling_increase
+      step: 0.1
+      max_rate: 1.0
+    
+    # 重新處理備份數據
+    - type: replay_backup_data
+      batch_size: 100

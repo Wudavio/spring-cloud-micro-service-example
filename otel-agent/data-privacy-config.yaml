@@ -1,0 +1,146 @@
+# OpenTelemetry 資料隱私和敏感資料過濾配置
+# 用於檢測和脫敏敏感資訊
+
+# 敏感資料檢測規則
+sensitive_data_patterns:
+  # 密碼相關
+  passwords:
+    - pattern: '(?i)(password|pwd|passwd|secret|token|key|auth)'
+    - pattern: '(?i)(api[_-]?key|access[_-]?token|bearer[_-]?token)'
+    - pattern: '(?i)(client[_-]?secret|private[_-]?key|secret[_-]?key)'
+    
+  # 個人識別資訊 (PII)
+  pii:
+    - pattern: '\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b'  # 信用卡號
+    - pattern: '\b\d{3}-\d{2}-\d{4}\b'  # 社會安全號碼
+    - pattern: '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'  # 電子郵件
+    - pattern: '\b\d{10,15}\b'  # 電話號碼
+    
+  # 系統敏感資訊
+  system:
+    - pattern: '(?i)(database[_-]?url|db[_-]?connection|jdbc[_-]?url)'
+    - pattern: '(?i)(redis[_-]?url|mongodb[_-]?uri|elasticsearch[_-]?url)'
+    - pattern: '(?i)(aws[_-]?access[_-]?key|aws[_-]?secret)'
+    - pattern: '(?i)(gcp[_-]?key|azure[_-]?key|service[_-]?account)'
+
+# 脫敏策略
+masking_strategies:
+  # 完全遮蔽
+  full_mask:
+    replacement: "***REDACTED***"
+    apply_to:
+      - passwords
+      - system
+      
+  # 部分遮蔽
+  partial_mask:
+    replacement: "***{first_2}...{last_2}***"
+    apply_to:
+      - pii
+      
+  # 雜湊處理
+  hash_mask:
+    algorithm: "sha256"
+    salt: "otel-privacy-salt"
+    apply_to:
+      - pii
+
+# 白名單 - 不需要過濾的欄位
+whitelist:
+  attributes:
+    - "service.name"
+    - "service.version"
+    - "deployment.environment"
+    - "http.method"
+    - "http.status_code"
+    - "db.operation"
+    - "messaging.operation"
+    
+  resource_attributes:
+    - "service.name"
+    - "service.version"
+    - "service.instance.id"
+    - "telemetry.sdk.name"
+    - "telemetry.sdk.version"
+
+# 特殊處理規則
+special_rules:
+  # HTTP 標頭過濾
+  http_headers:
+    sensitive_headers:
+      - "authorization"
+      - "cookie"
+      - "x-api-key"
+      - "x-auth-token"
+      - "x-access-token"
+    action: "redact"
+    
+  # URL 參數過濾
+  url_parameters:
+    sensitive_params:
+      - "password"
+      - "token"
+      - "key"
+      - "secret"
+      - "auth"
+    action: "redact"
+    
+  # 日誌訊息過濾
+  log_messages:
+    scan_depth: 3  # 掃描層級深度
+    action: "mask"
+    preserve_structure: true
+
+# 過濾器配置
+filters:
+  # 指標過濾
+  metrics:
+    enabled: true
+    scan_labels: true
+    scan_values: false  # 指標值通常是數字，不需要掃描
+    
+  # 追蹤過濾
+  traces:
+    enabled: true
+    scan_span_names: true
+    scan_attributes: true
+    scan_events: true
+    scan_links: false
+    
+  # 日誌過濾
+  logs:
+    enabled: true
+    scan_body: true
+    scan_attributes: true
+    scan_resource: false  # 資源屬性通常是安全的
+
+# 監控和告警
+monitoring:
+  # 統計敏感資料檢測次數
+  count_detections: true
+  
+  # 記錄被過濾的資料類型
+  log_filtered_types: true
+  
+  # 告警閾值
+  alert_thresholds:
+    high_detection_rate: 100  # 每分鐘檢測超過 100 次敏感資料
+    unusual_patterns: 50      # 檢測到異常模式
+    
+# 合規性設定
+compliance:
+  # GDPR 合規
+  gdpr:
+    enabled: true
+    right_to_be_forgotten: true
+    data_minimization: true
+    
+  # CCPA 合規
+  ccpa:
+    enabled: true
+    
+  # 行業標準
+  standards:
+    - "PCI-DSS"
+    - "HIPAA"
+    - "SOX"

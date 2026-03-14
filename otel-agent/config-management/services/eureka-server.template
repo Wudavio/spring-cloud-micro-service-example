@@ -1,0 +1,26 @@
+# Eureka Server 服務特定配置模板
+# 此檔案包含 Eureka Server 的特定儀表化配置
+
+# 服務識別
+OTEL_SERVICE_NAME=eureka-server
+OTEL_SERVICE_VERSION=${SERVICE_VERSION:-1.0.0}
+
+# Eureka 相關儀表化
+OTEL_INSTRUMENTATION_SPRING_CLOUD_ENABLED=true
+
+# HTTP 客戶端儀表化
+OTEL_INSTRUMENTATION_RESTTEMPLATE_ENABLED=true
+OTEL_INSTRUMENTATION_APACHE_HTTPCLIENT_ENABLED=true
+
+# Spring Boot 相關儀表化
+OTEL_INSTRUMENTATION_SPRING_WEB_ENABLED=true
+OTEL_INSTRUMENTATION_SPRING_WEBMVC_ENABLED=true
+
+# HTTP 標頭傳播配置
+OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_CLIENT_REQUEST=traceparent,tracestate,baggage,x-trace-id,x-span-id
+OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_CLIENT_RESPONSE=x-trace-id,x-span-id
+OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_REQUEST=traceparent,tracestate,baggage,x-trace-id,x-span-id,user-agent
+OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_RESPONSE=x-trace-id,x-span-id
+
+# 資源屬性 (Eureka Server 特定)
+OTEL_RESOURCE_ATTRIBUTES_SERVICE=service.name=eureka-server,service.role=service-discovery,service.tier=infrastructure

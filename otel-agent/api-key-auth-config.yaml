@@ -1,0 +1,261 @@
+# OpenTelemetry Collector API 金鑰驗證配置
+# 用於配置 API 金鑰身份驗證和授權
+
+# API 金鑰驗證擴展配置
+extensions:
+  # 基本身份驗證擴展
+  basicauth/api_key:
+    htpasswd:
+      # 使用 API 金鑰作為密碼的基本身份驗證
+      inline: |
+        otel-collector:$2y$10$hashed_api_key_here
+        mimir:$2y$10$hashed_api_key_here
+        tempo:$2y$10$hashed_api_key_here
+        loki:$2y$10$hashed_api_key_here
+        grafana:$2y$10$hashed_api_key_here
+
+  # Bearer Token 身份驗證擴展
+  bearertokenauth/api_key:
+    # 從檔案讀取有效的 API 金鑰
+    filename: "/etc/otel/api-keys.txt"
+    # 或者直接配置 token
+    token: "Bearer ${OTEL_API_KEY}"
+
+  # 自定義標頭身份驗證擴展
+  headers_setter:
+    headers:
+      - action: insert
+        key: "X-API-Key"
+        from_context: "api_key"
+      - action: insert
+        key: "Authorization"
+        value: "Bearer ${OTEL_API_KEY}"
+
+# 接收器身份驗證配置
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4327
+        # 啟用身份驗證
+        auth:
+          authenticator: basicauth/api_key
+        # TLS 配置
+        tls:
+          cert_file: /certs/otel-collector-cert.pem
+          key_file: /certs/otel-collector-key.pem
+          ca_file: /certs/ca-cert.pem
+          client_ca_file: /certs/ca-cert.pem
+      http:
+        endpoint: 0.0.0.0:4328
+        # 啟用身份驗證
+        auth:
+          authenticator: bearertokenauth/api_key
+        # TLS 配置
+        tls:
+          cert_file: /certs/otel-collector-cert.pem
+          key_file: /certs/otel-collector-key.pem
+          ca_file: /certs/ca-cert.pem
+
+# 導出器身份驗證配置
+exporters:
+  # Mimir 導出器 - 使用 API 金鑰
+  prometheusremotewrite:
+    endpoint: https://mimir:9009/api/v1/push
+    # API 金鑰身份驗證
+    headers:
+      "X-Scope-OrgID": "tenant-1"
+      "X-API-Key": "${MIMIR_API_KEY}"
+      "Authorization": "Bearer ${MIMIR_API_KEY}"
+    # TLS 配置
+    tls:
+      cert_file: /certs/otel-collector-cert.pem
+      key_file: /certs/otel-collector-key.pem
+      ca_file: /certs/ca-cert.pem
+    # 身份驗證擴展
+    auth:
+      authenticator: bearertokenauth/api_key
+
+  # Tempo 導出器 - 使用 API 金鑰
+  otlp/tempo:
+    endpoint: https://tempo:4317
+    # API 金鑰身份驗證
+    headers:
+      "X-Scope-OrgID": "tenant-1"
+      "X-API-Key": "${TEMPO_API_KEY}"
+      "Authorization": "Bearer ${TEMPO_API_KEY}"
+    # TLS 配置
+    tls:
+      cert_file: /certs/otel-collector-cert.pem
+      key_file: /certs/otel-collector-key.pem
+      ca_file: /certs/ca-cert.pem
+    # 身份驗證擴展
+    auth:
+      authenticator: bearertokenauth/api_key
+
+  # Loki 導出器 - 使用 API 金鑰
+  loki:
+    endpoint: https://loki:3100/loki/api/v1/push
+    # API 金鑰身份驗證
+    headers:
+      "Content-Type": "application/json"
+      "X-Scope-OrgID": "tenant-1"
+      "X-API-Key": "${LOKI_API_KEY}"
+      "Authorization": "Bearer ${LOKI_API_KEY}"
+    # TLS 配置
+    tls:
+      cert_file: /certs/otel-collector-cert.pem
+      key_file: /certs/otel-collector-key.pem
+      ca_file: /certs/ca-cert.pem
+    # 身份驗證擴展
+    auth:
+      authenticator: bearertokenauth/api_key
+
+# 處理器配置 - 添加 API 金鑰驗證中間件
+processors:
+  # 資源處理器 - 添加身份驗證相關屬性
+  resource:
+    attributes:
+      - key: auth.method
+        value: "api_key"
+        action: upsert
+      - key: auth.provider
+        value: "opentelemetry"
+        action: upsert
+      - key: security.level
+        value: "authenticated"
+        action: upsert
+
+  # 屬性處理器 - 處理身份驗證相關屬性
+  attributes:
+    actions:
+      # 移除敏感的身份驗證資訊
+      - key: "api_key"
+        action: delete
+      - key: "authorization"
+        action: delete
+      # 添加身份驗證狀態
+      - key: "auth.status"
+        value: "verified"
+        action: insert
+
+# 服務配置
+service:
+  # 擴展配置 - 包含身份驗證擴展
+  extensions: [
+    health_check, 
+    pprof, 
+    zpages, 
+    memory_ballast, 
+    file_storage, 
+    host_observer, 
+    prometheus,
+    basicauth/api_key,
+    bearertokenauth/api_key,
+    headers_setter
+  ]
+
+# API 金鑰驗證中間件配置
+auth_middleware:
+  # 金鑰驗證規則
+  validation:
+    # 金鑰格式驗證
+    key_format: "^[a-f0-9]{64}$"
+    # 金鑰長度驗證
+    key_length: 64
+    # 過期時間檢查
+    check_expiration: true
+    # 撤銷狀態檢查
+    check_revocation: true
+
+  # 授權規則
+  authorization:
+    # 服務權限映射
+    service_permissions:
+      otel-collector:
+        - "telemetry.write"
+        - "telemetry.read"
+        - "metrics.export"
+        - "traces.export"
+        - "logs.export"
+      mimir:
+        - "metrics.write"
+        - "metrics.read"
+      tempo:
+        - "traces.write"
+        - "traces.read"
+      loki:
+        - "logs.write"
+        - "logs.read"
+      grafana:
+        - "dashboard.read"
+        - "query.execute"
+
+  # 速率限制配置
+  rate_limiting:
+    enabled: true
+    # 每個 API 金鑰的速率限制
+    per_key_limits:
+      requests_per_minute: 1000
+      burst_size: 100
+    # 全域速率限制
+    global_limits:
+      requests_per_minute: 10000
+      burst_size: 1000
+
+  # 審計日誌配置
+  audit_logging:
+    enabled: true
+    log_successful_auth: true
+    log_failed_auth: true
+    log_rate_limit_exceeded: true
+    log_file: "/var/log/otel/auth-audit.log"
+    log_format: "json"
+
+# 金鑰輪換配置
+key_rotation:
+  # 自動輪換設定
+  auto_rotation:
+    enabled: false  # 手動控制輪換
+    interval: "90d"
+    warning_period: "7d"
+  
+  # 輪換通知
+  notifications:
+    enabled: true
+    webhook_url: "https://alerts.example.com/webhook"
+    email_recipients:
+      - "ops@example.com"
+      - "security@example.com"
+
+# 監控和告警配置
+monitoring:
+  # 身份驗證指標
+  metrics:
+    - name: "auth_requests_total"
+      description: "Total number of authentication requests"
+      labels: ["service", "status", "method"]
+    - name: "auth_failures_total"
+      description: "Total number of authentication failures"
+      labels: ["service", "reason"]
+    - name: "api_key_usage_total"
+      description: "Total API key usage by service"
+      labels: ["service", "key_id"]
+    - name: "rate_limit_exceeded_total"
+      description: "Total rate limit exceeded events"
+      labels: ["service", "key_id"]
+
+  # 告警規則
+  alerts:
+    - name: "high_auth_failure_rate"
+      condition: "rate(auth_failures_total[5m]) > 10"
+      severity: "warning"
+      description: "High authentication failure rate detected"
+    - name: "api_key_near_expiry"
+      condition: "api_key_expires_in_days < 7"
+      severity: "warning"
+      description: "API key will expire soon"
+    - name: "rate_limit_exceeded"
+      condition: "rate(rate_limit_exceeded_total[1m]) > 0"
+      severity: "critical"
+      description: "API rate limit exceeded"

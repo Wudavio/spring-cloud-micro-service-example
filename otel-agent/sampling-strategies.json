@@ -1,0 +1,126 @@
+{
+  "service_strategies": [
+    {
+      "service": "api-gateway",
+      "type": "probabilistic",
+      "param": 1.0,
+      "max_traces_per_second": 100,
+      "operation_strategies": [
+        {
+          "operation": "GET /actuator/health",
+          "type": "probabilistic",
+          "param": 0.1
+        },
+        {
+          "operation": "GET /actuator/metrics",
+          "type": "probabilistic", 
+          "param": 0.1
+        }
+      ]
+    },
+    {
+      "service": "product-service",
+      "type": "probabilistic",
+      "param": 1.0,
+      "max_traces_per_second": 50,
+      "operation_strategies": [
+        {
+          "operation": "GET /actuator/health",
+          "type": "probabilistic",
+          "param": 0.1
+        },
+        {
+          "operation": "GET /products",
+          "type": "probabilistic",
+          "param": 0.8
+        },
+        {
+          "operation": "POST /products",
+          "type": "probabilistic",
+          "param": 1.0
+        }
+      ]
+    },
+    {
+      "service": "order-service", 
+      "type": "probabilistic",
+      "param": 1.0,
+      "max_traces_per_second": 50,
+      "operation_strategies": [
+        {
+          "operation": "GET /actuator/health",
+          "type": "probabilistic",
+          "param": 0.1
+        },
+        {
+          "operation": "POST /orders",
+          "type": "probabilistic",
+          "param": 1.0
+        },
+        {
+          "operation": "GET /orders",
+          "type": "probabilistic",
+          "param": 0.8
+        }
+      ]
+    },
+    {
+      "service": "inventory-service",
+      "type": "probabilistic", 
+      "param": 1.0,
+      "max_traces_per_second": 50,
+      "operation_strategies": [
+        {
+          "operation": "GET /actuator/health",
+          "type": "probabilistic",
+          "param": 0.1
+        },
+        {
+          "operation": "POST /inventory/reserve",
+          "type": "probabilistic",
+          "param": 1.0
+        },
+        {
+          "operation": "GET /inventory",
+          "type": "probabilistic",
+          "param": 0.8
+        }
+      ]
+    },
+    {
+      "service": "auth-service",
+      "type": "probabilistic",
+      "param": 1.0,
+      "max_traces_per_second": 30,
+      "operation_strategies": [
+        {
+          "operation": "GET /actuator/health",
+          "type": "probabilistic",
+          "param": 0.1
+        },
+        {
+          "operation": "POST /auth/login",
+          "type": "probabilistic",
+          "param": 1.0
+        },
+        {
+          "operation": "POST /auth/register",
+          "type": "probabilistic",
+          "param": 1.0
+        }
+      ]
+    }
+  ],
+  "default_strategy": {
+    "type": "probabilistic",
+    "param": 0.5,
+    "max_traces_per_second": 20
+  },
+  "per_operation_strategies": [
+    {
+      "operation": "jaeger_query",
+      "type": "probabilistic",
+      "param": 1.0
+    }
+  ]
+}

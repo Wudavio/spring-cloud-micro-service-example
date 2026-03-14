@@ -1,0 +1,187 @@
+# OpenTelemetry Collector 敏感資料處理器配置
+# 用於在 Collector 層面進行敏感資料過濾
+
+processors:
+  # 敏感資料過濾處理器 - 指標
+  transform/privacy_metrics:
+    metric_statements:
+      - context: metric
+        statements:
+          # 移除包含敏感關鍵字的指標標籤
+          - delete_key(attributes, "password") where attributes["password"] != nil
+          - delete_key(attributes, "secret") where attributes["secret"] != nil
+          - delete_key(attributes, "token") where attributes["token"] != nil
+          - delete_key(attributes, "key") where attributes["key"] != nil
+          - delete_key(attributes, "auth") where attributes["auth"] != nil
+          - delete_key(attributes, "api_key") where attributes["api_key"] != nil
+          - delete_key(attributes, "access_token") where attributes["access_token"] != nil
+          - delete_key(attributes, "bearer_token") where attributes["bearer_token"] != nil
+          - delete_key(attributes, "client_secret") where attributes["client_secret"] != nil
+          - delete_key(attributes, "private_key") where attributes["private_key"] != nil
+          
+          # 脫敏 URL 中的敏感參數
+          - replace_pattern(attributes["http.url"], "([?&])(password|token|key|secret|auth)=[^&]*", "$1$2=***REDACTED***") where attributes["http.url"] != nil
+          - replace_pattern(attributes["db.connection_string"], "(password|pwd)=[^;]*", "$1=***REDACTED***") where attributes["db.connection_string"] != nil
+          
+          # 添加隱私處理標記
+          - set(attributes["privacy.processed"], "true")
+          - set(attributes["privacy.processor_version"], "1.0.0")
+
+  # 敏感資料過濾處理器 - 追蹤
+  transform/privacy_traces:
+    trace_statements:
+      - context: span
+        statements:
+          # 移除敏感的 span 屬性
+          - delete_key(attributes, "password") where attributes["password"] != nil
+          - delete_key(attributes, "secret") where attributes["secret"] != nil
+          - delete_key(attributes, "token") where attributes["token"] != nil
+          - delete_key(attributes, "key") where attributes["key"] != nil
+          - delete_key(attributes, "auth") where attributes["auth"] != nil
+          - delete_key(attributes, "authorization") where attributes["authorization"] != nil
+          - delete_key(attributes, "cookie") where attributes["cookie"] != nil
+          - delete_key(attributes, "x-api-key") where attributes["x-api-key"] != nil
+          - delete_key(attributes, "x-auth-token") where attributes["x-auth-token"] != nil
+          - delete_key(attributes, "x-access-token") where attributes["x-access-token"] != nil
+          
+          # 脫敏 HTTP 相關屬性
+          - replace_pattern(attributes["http.url"], "([?&])(password|token|key|secret|auth)=[^&]*", "$1$2=***REDACTED***") where attributes["http.url"] != nil
+          - replace_pattern(attributes["http.target"], "([?&])(password|token|key|secret|auth)=[^&]*", "$1$2=***REDACTED***") where attributes["http.target"] != nil
+          - set(attributes["http.request.header.authorization"], "***REDACTED***") where attributes["http.request.header.authorization"] != nil
+          - set(attributes["http.request.header.cookie"], "***REDACTED***") where attributes["http.request.header.cookie"] != nil
+          
+          # 脫敏資料庫相關屬性
+          - replace_pattern(attributes["db.connection_string"], "(password|pwd)=[^;]*", "$1=***REDACTED***") where attributes["db.connection_string"] != nil
+          - replace_pattern(attributes["db.statement"], "(?i)(password|secret|token)\\s*=\\s*'[^']*'", "$1='***REDACTED***'") where attributes["db.statement"] != nil
+          
+          # 脫敏訊息佇列相關屬性
+          - replace_pattern(attributes["messaging.url"], "(password|pwd)=[^&]*", "$1=***REDACTED***") where attributes["messaging.url"] != nil
+          
+          # 添加隱私處理標記
+          - set(attributes["privacy.processed"], "true")
+          - set(attributes["privacy.processor_version"], "1.0.0")
+          
+      - context: spanevent
+        statements:
+          # 處理 span 事件中的敏感資料
+          - delete_key(attributes, "password") where attributes["password"] != nil
+          - delete_key(attributes, "secret") where attributes["secret"] != nil
+          - delete_key(attributes, "token") where attributes["token"] != nil
+          - delete_key(attributes, "key") where attributes["key"] != nil
+          - delete_key(attributes, "auth") where attributes["auth"] != nil
+          
+          # 脫敏事件名稱中的敏感資訊
+          - replace_pattern(name, "(?i)(password|secret|token|key|auth)=[^\\s]*", "$1=***REDACTED***")
+
+  # 敏感資料過濾處理器 - 日誌
+  transform/privacy_logs:
+    log_statements:
+      - context: log
+        statements:
+          # 移除敏感的日誌屬性
+          - delete_key(attributes, "password") where attributes["password"] != nil
+          - delete_key(attributes, "secret") where attributes["secret"] != nil
+          - delete_key(attributes, "token") where attributes["token"] != nil
+          - delete_key(attributes, "key") where attributes["key"] != nil
+          - delete_key(attributes, "auth") where attributes["auth"] != nil
+          - delete_key(attributes, "authorization") where attributes["authorization"] != nil
+          - delete_key(attributes, "cookie") where attributes["cookie"] != nil
+          - delete_key(attributes, "api_key") where attributes["api_key"] != nil
+          - delete_key(attributes, "access_token") where attributes["access_token"] != nil
+          - delete_key(attributes, "bearer_token") where attributes["bearer_token"] != nil
+          - delete_key(attributes, "client_secret") where attributes["client_secret"] != nil
+          - delete_key(attributes, "private_key") where attributes["private_key"] != nil
+          
+          # 脫敏日誌訊息內容
+          - replace_pattern(body, "(?i)(password|pwd|passwd|secret|token|key|auth)\\s*[:=]\\s*[^\\s,}]+", "$1=***REDACTED***") where body != nil
+          - replace_pattern(body, "(?i)(api[_-]?key|access[_-]?token|bearer[_-]?token|client[_-]?secret|private[_-]?key)\\s*[:=]\\s*[^\\s,}]+", "$1=***REDACTED***") where body != nil
+          
+          # 脫敏 URL 和連接字串
+          - replace_pattern(body, "([?&])(password|token|key|secret|auth)=[^&\\s]*", "$1$2=***REDACTED***") where body != nil
+          - replace_pattern(body, "(password|pwd)=[^;\\s]*", "$1=***REDACTED***") where body != nil
+          
+          # 脫敏個人識別資訊 (PII)
+          - replace_pattern(body, "\\b\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}\\b", "****-****-****-****") where body != nil  # 信用卡號
+          - replace_pattern(body, "\\b\\d{3}-\\d{2}-\\d{4}\\b", "***-**-****") where body != nil  # 社會安全號碼
+          - replace_pattern(body, "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b", "***@***.***") where body != nil  # 電子郵件
+          
+          # 添加隱私處理標記
+          - set(attributes["privacy.processed"], "true")
+          - set(attributes["privacy.processor_version"], "1.0.0")
+          - set(attributes["privacy.pii_filtered"], "true")
+
+  # 資源屬性隱私過濾器
+  resource/privacy:
+    attributes:
+      # 移除可能包含敏感資訊的資源屬性
+      - key: "service.instance.id"
+        action: delete
+        # 只保留服務名稱，移除可能包含主機名或 IP 的實例 ID
+      - key: "host.name"
+        action: delete
+        # 移除主機名稱以保護基礎設施資訊
+      - key: "container.id"
+        action: delete
+        # 移除容器 ID 以保護部署資訊
+      - key: "k8s.pod.name"
+        action: delete
+        # 移除 Pod 名稱以保護 Kubernetes 資訊
+      - key: "k8s.node.name"
+        action: delete
+        # 移除節點名稱
+        
+      # 添加隱私處理標記
+      - key: "privacy.resource_filtered"
+        value: "true"
+        action: upsert
+      - key: "privacy.filter_timestamp"
+        value: "${TIMESTAMP}"
+        action: upsert
+
+  # 批次處理器 - 隱私處理後的資料
+  batch/privacy:
+    timeout: 2s
+    send_batch_size: 512
+    send_batch_max_size: 1024
+    metadata_keys: ["privacy.processed"]
+
+# 過濾器處理器 - 移除未經隱私處理的資料
+filter/privacy_enforcement:
+  # 指標過濾
+  metrics:
+    metric:
+      # 只允許經過隱私處理的指標通過
+      - 'attributes["privacy.processed"] == "true"'
+      
+  # 追蹤過濾  
+  traces:
+    span:
+      # 只允許經過隱私處理的 span 通過
+      - 'attributes["privacy.processed"] == "true"'
+      
+  # 日誌過濾
+  logs:
+    log_record:
+      # 只允許經過隱私處理的日誌通過
+      - 'attributes["privacy.processed"] == "true"'
+
+# 統計處理器 - 收集隱私處理統計資料
+probabilistic_sampler/privacy_stats:
+  hash_seed: 42
+  sampling_percentage: 100.0  # 收集所有隱私處理統計資料
+
+# 屬性處理器 - 添加隱私合規標記
+attributes/privacy_compliance:
+  actions:
+    - key: "compliance.gdpr"
+      value: "processed"
+      action: upsert
+    - key: "compliance.ccpa"
+      value: "processed"
+      action: upsert
+    - key: "compliance.pci_dss"
+      value: "filtered"
+      action: upsert
+    - key: "data_classification"
+      value: "sanitized"
+      action: upsert

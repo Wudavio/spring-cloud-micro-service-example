@@ -1,6 +1,6 @@
 # 微服務訂單庫存系統 (Microservices Order Inventory System)
 
-基於 Spring Cloud 的企業級微服務系統，包含完整的電商業務功能：產品管理、庫存控制、訂單處理、用戶認證等，支援高並發防超賣機制和完整的購物車功能。
+基於 Spring Cloud 的企業級微服務系統，包含完整的電商業務功能：產品管理、庫存控制、訂單處理、用戶認證等，支援高並發防超賣機制、完整的購物車功能，以及完整的 LGTM 可觀測性堆疊。
 
 ## 系統架構
 
@@ -18,7 +18,30 @@
 ### 基礎設施
 - **PostgreSQL** (5432) - 主資料庫，每個服務獨立資料庫
 - **Redis** (6379) - 快取與分散式鎖
-- **Zipkin** (9411) - 分散式鏈路追蹤
+
+### 可觀測性堆疊 (LGTM)
+- **Loki** (3100) - 日誌聚合與查詢
+- **Grafana** (3000) - 統一視覺化儀表板
+- **Tempo** (3200) - 分散式鏈路追蹤存儲
+- **Mimir** (9009) - 指標長期存儲 (Prometheus 相容)
+- **OpenTelemetry Collector** (4327/4328) - 遙測數據收集與路由
+- **Zipkin** (9411) - 相容舊版追蹤配置（逐步遷移至 Tempo）
+
+### 可觀測性架構
+
+```
+微服務 (+ OTel Java Agent)
+    │
+    ▼
+OpenTelemetry Collector (:4327 gRPC / :4328 HTTP)
+    ├── Traces ──► Tempo (:3200)
+    ├── Metrics ─► Mimir (:9009)
+    └── Logs ───► Loki (:3100)
+                          │
+                          ▼
+                    Grafana (:3000)
+                  (統一查詢與視覺化)
+```
 
 ### 系統特色功能
 
@@ -42,6 +65,13 @@
 - 用戶註冊、登入、權限管理
 - API 安全防護
 
+#### 📊 完整可觀測性 (LGTM)
+- **零程式碼修改**：OpenTelemetry Java Agent 自動儀表化
+- **分散式追蹤**：完整的跨服務 Trace，可在 Grafana 中追蹤完整 Java call stack
+- **指標監控**：JVM、HTTP、資料庫連接池等指標自動收集
+- **結構化日誌**：含 trace_id/span_id 關聯，可從 log 直接跳轉到對應 trace
+- **預建儀表板**：微服務總覽、服務詳情、分散式追蹤、錯誤監控
+
 ## 技術棧
 
 ### 後端框架
@@ -59,8 +89,15 @@
 ### 服務治理
 - **Eureka**: 服務註冊與發現
 - **Spring Cloud Config**: 配置管理
-- **Zipkin**: 分散式鏈路追蹤
 - **Spring Boot Actuator**: 健康檢查與監控
+
+### 可觀測性 (LGTM)
+- **OpenTelemetry Java Agent**: 自動儀表化，無需修改程式碼
+- **OpenTelemetry Collector**: 遙測數據收集、處理與路由
+- **Grafana**: 統一視覺化儀表板 (預建 5 個儀表板)
+- **Tempo**: 分散式追蹤存儲，支援 TraceQL
+- **Loki**: 日誌聚合，支援 LogQL
+- **Mimir**: 指標長期存儲，支援 PromQL
 
 ### API 文檔
 - **SpringDoc OpenAPI 3**: Swagger UI 介面
@@ -85,7 +122,14 @@
 
 ### 方法一：使用 Docker Compose（推薦）
 
-#### 1. 編譯打包所有服務
+#### 1. 複製 OpenTelemetry Agent 到各服務目錄
+```bash
+# 必須先執行此步驟，才能建置 Docker 映像
+chmod +x copy-otel-files.sh
+./copy-otel-files.sh
+```
+
+#### 2. 編譯打包所有服務
 ```bash
 # 清理並打包所有微服務（跳過測試以加快速度）
 mvn clean package -DskipTests
@@ -94,9 +138,9 @@ mvn clean package -DskipTests
 mvn clean package
 ```
 
-#### 2. 啟動完整系統
+#### 3. 啟動完整系統
 ```bash
-# 啟動所有服務（基礎設施 + 微服務）
+# 啟動所有服務（基礎設施 + LGTM 堆疊 + 微服務）
 docker-compose up -d
 
 # 查看服務狀態
@@ -106,19 +150,25 @@ docker-compose ps
 docker-compose logs -f [service-name]
 ```
 
-#### 3. 驗證服務啟動
-等待所有服務健康檢查通過（約 2-3 分鐘），然後訪問：
+#### 4. 驗證服務啟動
+等待所有服務健康檢查通過（約 3-5 分鐘），然後訪問：
 
-- **Eureka 服務註冊中心**: http://localhost:8761
-- **API Gateway 健康檢查**: http://localhost:8080/actuator/health
-- **Zipkin 鏈路追蹤**: http://localhost:9411
+| 服務 | URL | 說明 |
+|------|-----|------|
+| Eureka | http://localhost:8761 | 服務註冊中心 |
+| API Gateway | http://localhost:8080/actuator/health | API 入口 |
+| **Grafana** | **http://localhost:3000** | **可觀測性儀表板 (admin/admin)** |
+| Tempo | http://localhost:3200/ready | 追蹤存儲 |
+| Loki | http://localhost:3100/ready | 日誌存儲 |
+| Mimir | http://localhost:9009/ready | 指標存儲 |
+| Zipkin | http://localhost:9411 | 舊版追蹤 UI |
 
 ### 方法二：本地開發模式
 
-#### 1. 啟動基礎設施
+#### 1. 啟動基礎設施 + LGTM 堆疊
 ```bash
-# 僅啟動基礎設施服務
-docker-compose up -d postgres redis zipkin
+# 啟動基礎設施和可觀測性服務
+docker-compose up -d postgres redis otel-collector mimir tempo loki grafana zipkin
 ```
 
 #### 2. 按順序啟動微服務
@@ -146,9 +196,46 @@ cd ../order-service && mvn spring-boot:run &
 # 停止所有 Docker 服務
 docker-compose down
 
-# 停止並清理資料卷（注意：會刪除資料庫資料）
+# 停止並清理資料卷（注意：會刪除資料庫和監控資料）
 docker-compose down -v
 ```
+
+## Grafana 儀表板使用指南
+
+### 登入 Grafana
+1. 開啟 http://localhost:3000
+2. 帳號：`admin` / 密碼：`admin`
+
+### 預建儀表板
+
+| 儀表板 | 說明 |
+|--------|------|
+| **微服務總覽** | 所有服務的 HTTP 請求速率、延遲、錯誤率 |
+| **服務詳情** | 單一服務的詳細指標（JVM、DB 連接池、Redis） |
+| **分散式追蹤** | 跨服務追蹤視覺化 |
+| **錯誤監控** | 錯誤率趨勢與詳細錯誤日誌 |
+| **OTel Collector 自監控** | Collector 效能與健康狀況 |
+
+### 追蹤 Java Call Stack
+
+1. 在 Grafana 左側選單點擊 **Explore**
+2. 選擇資料源 **Tempo**
+3. 點擊 **Search** 標籤
+4. 選擇 Service Name（如 `order-service`）
+5. 點擊 **Run query** 查看最近的 traces
+6. 點擊任一 trace 展開完整的 span 樹，可看到：
+   - HTTP 請求進入 API Gateway
+   - 轉發至業務服務
+   - 資料庫查詢 (SQL 語句)
+   - 服務間 Feign 調用
+   - Redis 操作
+
+### 從日誌跳轉到 Trace
+
+1. 在 Grafana Explore 中選擇 **Loki** 資料源
+2. 查詢服務日誌，例如：`{service="order-service"}`
+3. 點擊含有 `trace_id` 的日誌行
+4. 點擊 **View Trace** 直接跳轉到對應的 Tempo trace
 
 ## API 文檔與測試
 
@@ -156,12 +243,11 @@ docker-compose down -v
 
 **通過 API Gateway 統一訪問所有服務的 API 文檔**：
 - **統一 Swagger UI**: http://localhost:8080/swagger-ui.html
-- **重定向 URL**: http://localhost:8080/webjars/swagger-ui/index.html
 
 在 Swagger UI 界面中，你可以通過下拉選單選擇不同的服務：
 - **API Gateway** - 閘道器本身的 API
 - **Auth Service** - 用戶認證與授權 API
-- **Product Service** - 產品管理 API  
+- **Product Service** - 產品管理 API
 - **Inventory Service** - 庫存管理 API
 - **Order Service** - 訂單與購物車 API
 
@@ -176,7 +262,7 @@ docker-compose down -v
 
 #### 直接訪問各服務（開發調試用）
 - **產品服務 API**: http://localhost:8081/swagger-ui.html
-- **庫存服務 API**: http://localhost:8082/swagger-ui.html  
+- **庫存服務 API**: http://localhost:8082/swagger-ui.html
 - **訂單服務 API**: http://localhost:8083/swagger-ui.html
 - **認證服務 API**: http://localhost:8084/swagger-ui.html
 
@@ -277,15 +363,15 @@ curl -X POST "http://localhost:8080/api/products" \
 - **product_db**: 產品服務專用資料庫
   - 用戶: product_user / product_pass
   - 表: products, categories
-  
+
 - **inventory_db**: 庫存服務專用資料庫
   - 用戶: inventory_user / inventory_pass
   - 表: inventory, inventory_transactions
-  
+
 - **order_db**: 訂單服務專用資料庫
   - 用戶: order_user / order_pass
   - 表: orders, order_items, shopping_carts, cart_items
-  
+
 - **auth_db**: 認證服務專用資料庫
   - 用戶: auth_user / auth_pass
   - 表: users, roles, user_roles
@@ -319,39 +405,37 @@ mvn clean package -DskipTests
 - **整合測試**: 使用 Testcontainers 進行資料庫整合測試
 - **API 測試**: 使用 Spring Boot Test 進行 REST API 測試
 
-## 監控與運維
+## 監控與可觀測性
 
-### 健康檢查
+### Grafana 儀表板
+- **Grafana UI**: http://localhost:3000 (admin/admin)
+- 預建 5 個儀表板，涵蓋微服務總覽、追蹤分析、錯誤監控
+
+### 分散式追蹤
+- **Tempo (via Grafana)**: http://localhost:3000 → Explore → Tempo
+- **Zipkin UI (舊版)**: http://localhost:9411
+- 完整跨服務追蹤，支援 Java call stack 視覺化
+
+### 日誌查詢
+- **Loki (via Grafana)**: http://localhost:3000 → Explore → Loki
+- 結構化日誌，含 trace_id 關聯，可從日誌一鍵跳轉到對應 trace
+- 查詢範例：`{service_name="order-service"} |= "ERROR"`
+
+### 指標監控
+- **Mimir (via Grafana)**: http://localhost:3000 → Explore → Mimir
+- JVM、HTTP、資料庫連接池等指標
+- 查詢範例：`http_server_request_duration_seconds_count{service_name="product-service"}`
+
+### 服務健康檢查端點
 每個服務都提供 Spring Boot Actuator 端點：
 - **健康狀態**: `http://localhost:{port}/actuator/health`
 - **服務資訊**: `http://localhost:{port}/actuator/info`
 - **指標監控**: `http://localhost:{port}/actuator/metrics`
 
-### 服務監控端點
-- **Eureka Server**: http://localhost:8761
-- **API Gateway**: http://localhost:8080/actuator/health
-- **Config Server**: http://localhost:8888/actuator/health
-- **Auth Service**: http://localhost:8084/actuator/health
-- **Product Service**: http://localhost:8081/actuator/health
-- **Inventory Service**: http://localhost:8082/actuator/health
-- **Order Service**: http://localhost:8083/actuator/health
-
-### 分散式鏈路追蹤
-- **Zipkin UI**: http://localhost:9411
-- 自動追蹤服務間調用鏈路
-- 性能分析和問題定位
-
-### 日誌管理
-```bash
-# 查看所有服務日誌
-docker-compose logs
-
-# 查看特定服務日誌
-docker-compose logs -f order-service
-
-# 查看最近 100 行日誌
-docker-compose logs --tail=100 product-service
-```
+### OTel Collector 狀態頁
+- **健康檢查**: http://localhost:13133/health
+- **內部狀態 (zPages)**: http://localhost:55679/debug/tracez
+- **效能分析 (pprof)**: http://localhost:1777/debug/pprof
 
 ## 開發指南
 
@@ -365,9 +449,18 @@ microservices-order-inventory-system/
 ├── product-service/            # 產品管理服務
 ├── inventory-service/          # 庫存管理服務（含分散式鎖）
 ├── order-service/              # 訂單與購物車服務
-├── docker-compose.yml          # Docker 編排配置
+├── grafana/                    # Grafana 配置與預建儀表板
+│   ├── provisioning/           # 自動配置資料源和儀表板
+│   └── dashboards/             # 預建儀表板 JSON
+├── loki/                       # Loki 日誌存儲配置
+├── tempo/                      # Tempo 追蹤存儲配置
+├── mimir/                      # Mimir 指標存儲配置
+├── otel-agent/                 # OpenTelemetry Java Agent 和配置
+├── otel-collector-config.yaml  # OTel Collector 管道配置
+├── copy-otel-files.sh          # 複製 OTel Agent 到各服務目錄
+├── docker-compose.yml          # Docker 編排配置（含 LGTM 堆疊）
 ├── init-databases.sql          # 資料庫初始化腳本
-└── pom.xml                    # Maven 父專案配置
+└── pom.xml                     # Maven 父專案配置
 ```
 
 ### 配置管理
@@ -382,6 +475,21 @@ microservices-order-inventory-system/
 - **服務發現**: 通過 Eureka 自動發現服務實例
 - **負載均衡**: Spring Cloud LoadBalancer 自動負載均衡
 - **熔斷器**: 集成 Resilience4j 提供熔斷保護
+
+### OpenTelemetry 配置
+每個服務透過以下方式啟用自動儀表化：
+- **Dockerfile**: 使用 `-javaagent:/app/opentelemetry-javaagent.jar` 啟動
+- **環境變數**: 透過 docker-compose.yml 注入 OTEL 配置
+- **otel-config.properties**: 服務層面的細節配置
+
+關鍵環境變數：
+```yaml
+OTEL_SERVICE_NAME: 服務名稱（識別追蹤來源）
+OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4327
+OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+OTEL_TRACES_SAMPLER: traceidratio
+OTEL_TRACES_SAMPLER_ARG: 1.0  # 100% 取樣（開發環境）
+```
 
 ### 分散式鎖實現
 庫存服務使用 Redis 實現分散式鎖，防止高並發超賣：
@@ -429,8 +537,11 @@ public class DistributedLockService {
 
 ### Docker 部署（生產環境）
 
-#### 1. 構建所有服務映像
+#### 1. 複製 OTel Agent 並構建所有服務映像
 ```bash
+# 複製 OpenTelemetry Java Agent 到各服務目錄
+./copy-otel-files.sh
+
 # 打包所有服務
 mvn clean package -DskipTests
 
@@ -443,7 +554,7 @@ docker-compose build order-service
 
 #### 2. 生產環境部署
 ```bash
-# 啟動所有服務
+# 啟動所有服務（含 LGTM 堆疊）
 docker-compose up -d
 
 # 檢查服務狀態
@@ -503,6 +614,10 @@ EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
 # JWT 配置
 JWT_SECRET=your-secret-key
 JWT_EXPIRATION=86400000
+
+# OTel 配置
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4327
+OTEL_TRACES_SAMPLER_ARG=0.1  # 生產環境建議降低取樣率
 ```
 
 ## 故障排除
@@ -540,7 +655,34 @@ ls config-server/src/main/resources/config-repo/
 curl http://localhost:8888/{service-name}/default
 ```
 
-#### 2. 資料庫連接問題
+#### 2. Grafana 追蹤看不到資料
+
+**問題**: Tempo 中沒有 trace 資料
+```bash
+# 解決步驟
+1. 確認 OTel Collector 健康
+curl http://localhost:13133/health
+
+2. 確認 Tempo 健康
+curl http://localhost:3200/ready
+
+3. 確認取樣率設定 (OTEL_TRACES_SAMPLER_ARG 應為 1.0 用於開發)
+
+4. 透過 zPages 確認 Collector 是否接收到 spans
+http://localhost:55679/debug/tracez
+```
+
+**問題**: Loki 中看不到日誌
+```bash
+# 確認 Loki 健康
+curl http://localhost:3100/ready
+
+# 在 Grafana Explore 中查詢
+# 資料源: Loki
+# 查詢: {service_name="order-service"}
+```
+
+#### 3. 資料庫連接問題
 
 **問題**: 資料庫連接失敗
 ```bash
@@ -561,7 +703,7 @@ docker exec -it postgres-db psql -U postgres -c "\l"
 docker exec -it postgres-db psql -U postgres -d order_db -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO order_user;"
 ```
 
-#### 3. Redis 連接問題
+#### 4. Redis 連接問題
 
 **問題**: Redis 連接失敗
 ```bash
@@ -576,7 +718,7 @@ docker exec -it redis-cache redis-cli ping
 docker-compose logs redis
 ```
 
-#### 4. API 調用問題
+#### 5. API 調用問題
 
 **問題**: 401 未授權錯誤
 ```bash
@@ -589,19 +731,6 @@ curl -X POST http://localhost:8080/api/auth/login \
 2. 在請求頭中包含 Authorization
 curl -H "Authorization: Bearer {your-jwt-token}" \
   http://localhost:8080/api/products
-```
-
-**問題**: 服務間調用失敗
-```bash
-# 解決步驟
-1. 檢查服務是否在 Eureka 中註冊
-curl http://localhost:8761/eureka/apps
-
-2. 檢查服務健康狀態
-curl http://localhost:8081/actuator/health
-
-3. 查看服務日誌
-docker-compose logs -f product-service
 ```
 
 ### 日誌查看與分析
@@ -621,17 +750,16 @@ docker-compose logs --tail=50 order-service | grep ERROR
 docker-compose logs -f --tail=100
 ```
 
-#### 本地開發日誌
-```bash
-# 查看應用日誌（如果配置了檔案日誌）
-tail -f order-service/logs/application.log
+#### 透過 Grafana / Loki 查詢日誌
+```
+# 查詢特定服務錯誤
+{service_name="order-service"} |= "ERROR"
 
-# 查看 Spring Boot 日誌
-# 日誌級別可在 application.yml 中配置
-logging:
-  level:
-    com.microservices: DEBUG
-    org.springframework.web: DEBUG
+# 查詢包含特定 trace_id 的日誌
+{service_name="product-service"} |= "abc123def456"
+
+# 查詢所有服務的錯誤
+{service_namespace="microservices"} | json | level = "ERROR"
 ```
 
 ### 性能調優
@@ -639,7 +767,7 @@ logging:
 #### JVM 調優參數
 ```bash
 # Dockerfile 中添加 JVM 參數
-ENTRYPOINT ["java", "-Xms512m", "-Xmx1024m", "-XX:+UseG1GC", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xms512m", "-Xmx1024m", "-XX:+UseG1GC", "-javaagent:/app/opentelemetry-javaagent.jar", "-jar", "app.jar"]
 ```
 
 #### 資料庫連接池調優
@@ -668,17 +796,26 @@ spring:
         max-wait: -1ms
 ```
 
+#### OTel 取樣率調整（生產環境）
+```yaml
+# 生產環境建議降低取樣率以減少負載
+OTEL_TRACES_SAMPLER: traceidratio
+OTEL_TRACES_SAMPLER_ARG: 0.1  # 10% 取樣
+```
+
 ### 監控告警
 
 #### 健康檢查腳本
 ```bash
 #!/bin/bash
 # health-check.sh
-services=("eureka-server:8761" "api-gateway:8080" "order-service:8083")
+services=("eureka-server:8761" "api-gateway:8080" "order-service:8083" "grafana:3000" "tempo:3200" "loki:3100")
 
 for service in "${services[@]}"; do
     IFS=':' read -r name port <<< "$service"
-    if curl -f "http://localhost:$port/actuator/health" > /dev/null 2>&1; then
+    if curl -f "http://localhost:$port/actuator/health" > /dev/null 2>&1 || \
+       curl -f "http://localhost:$port/ready" > /dev/null 2>&1 || \
+       curl -f "http://localhost:$port/api/health" > /dev/null 2>&1; then
         echo "✅ $name is healthy"
     else
         echo "❌ $name is unhealthy"
@@ -723,6 +860,7 @@ feat(order): add shopping cart functionality
 fix(inventory): resolve concurrent update issue
 docs(readme): update API documentation
 test(product): add integration tests
+feat(observability): add LGTM stack integration
 ```
 
 ## 許可證
@@ -738,6 +876,18 @@ test(product): add integration tests
 ---
 
 ## 更新日誌
+
+### v1.2.0 (2026-03-14)
+- 📊 整合完整 LGTM 可觀測性堆疊 (Loki, Grafana, Tempo, Mimir)
+- 🔭 OpenTelemetry Java Agent 自動儀表化所有服務
+- 📈 預建 5 個 Grafana 監控儀表板
+- 🔗 日誌與追蹤關聯（從 Loki 日誌跳轉至 Tempo trace）
+- ⚡ OpenTelemetry Collector 批次處理與背壓控制
+
+### v1.1.0 (2025-01-01)
+- 🔍 整合 Zipkin 分散式鏈路追蹤
+- 🚪 實作 API Gateway 安全機制與 Swagger 聚合
+- 🔐 完善 Auth Service JWT 認證機制
 
 ### v1.0.0 (2024-12-31)
 - ✨ 初始版本發布

@@ -71,6 +71,24 @@ spring:
 server:
   port: 8080
 
+# 日誌配置 - 結構化日誌
+logging:
+  level:
+    com.microservices.gateway: INFO
+    org.springframework.cloud.gateway: INFO
+    org.springframework: WARN
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+  file:
+    name: logs/api-gateway.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB
+
 # Eureka 客戶端配置
 eureka:
   client:
@@ -96,8 +114,6 @@ management:
     sampling:
       probability: 1.0
 
-# Zipkin 分散式追蹤配置
-management.zipkin.tracing.endpoint: http://zipkin:9411/api/v2/spans
 
 # Swagger 配置
 springdoc:

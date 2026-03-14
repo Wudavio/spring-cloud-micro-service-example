@@ -1,0 +1,167 @@
+# OpenTelemetry Collector 告警規則
+# 用於監控重試機制和錯誤處理
+
+groups:
+  - name: otel-collector-retry
+    rules:
+      # 導出失敗率告警
+      - alert: HighExportFailureRate
+        expr: |
+          (
+            rate(otelcol_exporter_send_failed_spans_total[5m]) +
+            rate(otelcol_exporter_send_failed_metric_points_total[5m]) +
+            rate(otelcol_exporter_send_failed_log_records_total[5m])
+          ) /
+          (
+            rate(otelcol_exporter_sent_spans_total[5m]) +
+            rate(otelcol_exporter_sent_metric_points_total[5m]) +
+            rate(otelcol_exporter_sent_log_records_total[5m]) +
+            rate(otelcol_exporter_send_failed_spans_total[5m]) +
+            rate(otelcol_exporter_send_failed_metric_points_total[5m]) +
+            rate(otelcol_exporter_send_failed_log_records_total[5m])
+          ) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          component: otel-collector
+        annotations:
+          summary: "OpenTelemetry Collector 導出失敗率過高"
+          description: "Collector 在過去 5 分鐘內的導出失敗率超過 10%，當前值: {{ $value | humanizePercentage }}"
+
+      # 重試次數過多告警
+      - alert: HighRetryRate
+        expr: rate(otelcol_exporter_retry_total[5m]) > 5
+        for: 1m
+        labels:
+          severity: warning
+          component: otel-collector
+        annotations:
+          summary: "OpenTelemetry Collector 重試次數過多"
+          description: "Collector 在過去 5 分鐘內的重試率超過每秒 5 次，當前值: {{ $value }}"
+
+      # 佇列滿載告警
+      - alert: ExportQueueFull
+        expr: |
+          otelcol_exporter_queue_size / otelcol_exporter_queue_capacity > 0.8
+        for: 1m
+        labels:
+          severity: critical
+          component: otel-collector
+        annotations:
+          summary: "OpenTelemetry Collector 導出佇列接近滿載"
+          description: "Collector 導出佇列使用率超過 80%，當前值: {{ $value | humanizePercentage }}"
+
+      # Collector 記憶體使用過高
+      - alert: CollectorHighMemoryUsage
+        expr: |
+          process_resident_memory_bytes{job="otel-collector"} / 1024 / 1024 > 500
+        for: 2m
+        labels:
+          severity: warning
+          component: otel-collector
+        annotations:
+          summary: "OpenTelemetry Collector 記憶體使用過高"
+          description: "Collector 記憶體使用超過 500MB，當前值: {{ $value }}MB"
+
+      # 後端服務不可用
+      - alert: BackendServiceDown
+        expr: |
+          up{job=~"mimir|tempo|loki"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: lgtm-stack
+        annotations:
+          summary: "LGTM 堆疊服務不可用"
+          description: "{{ $labels.job }} 服務已停止運行超過 1 分鐘"
+
+      # 指標導出延遲過高
+      - alert: HighMetricExportLatency
+        expr: |
+          histogram_quantile(0.95, rate(otelcol_exporter_send_duration_seconds_bucket[5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+          component: otel-collector
+        annotations:
+          summary: "指標導出延遲過高"
+          description: "95% 的指標導出請求延遲超過 10 秒，當前值: {{ $value }}s"
+
+  - name: microservice-telemetry
+    rules:
+      # 微服務遙測數據丟失
+      - alert: MicroserviceTelemetryDataLoss
+        expr: |
+          increase(otelcol_receiver_refused_spans_total[5m]) > 0 or
+          increase(otelcol_receiver_refused_metric_points_total[5m]) > 0 or
+          increase(otelcol_receiver_refused_log_records_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: otel-collector
+        annotations:
+          summary: "微服務遙測數據被拒絕"
+          description: "Collector 在過去 5 分鐘內拒絕了遙測數據，可能導致數據丟失"
+
+      # 批次處理效率低下
+      - alert: LowBatchProcessingEfficiency
+        expr: |
+          rate(otelcol_processor_batch_batch_send_size_sum[5m]) /
+          rate(otelcol_processor_batch_batch_send_size_count[5m]) < 100
+        for: 5m
+        labels:
+          severity: info
+          component: otel-collector
+        annotations:
+          summary: "批次處理效率低下"
+          description: "平均批次大小低於 100，當前值: {{ $value }}，建議檢查批次處理配置"
+
+      # 處理器延遲過高
+      - alert: HighProcessorLatency
+        expr: |
+          histogram_quantile(0.95, rate(otelcol_processor_batch_batch_send_duration_seconds_bucket[5m])) > 5
+        for: 2m
+        labels:
+          severity: warning
+          component: otel-collector
+        annotations:
+          summary: "批次處理器延遲過高"
+          description: "95% 的批次處理延遲超過 5 秒，當前值: {{ $value }}s"
+
+  - name: lgtm-stack-health
+    rules:
+      # Mimir 攝取率異常
+      - alert: MimirIngestionRateAnomaly
+        expr: |
+          rate(cortex_distributor_samples_in_total[5m]) < 100
+        for: 5m
+        labels:
+          severity: warning
+          component: mimir
+        annotations:
+          summary: "Mimir 指標攝取率異常低"
+          description: "Mimir 在過去 5 分鐘內的指標攝取率低於每秒 100 個樣本，當前值: {{ $value }}"
+
+      # Tempo 追蹤攝取異常
+      - alert: TempoTraceIngestionAnomaly
+        expr: |
+          rate(tempo_distributor_spans_received_total[5m]) < 10
+        for: 5m
+        labels:
+          severity: warning
+          component: tempo
+        annotations:
+          summary: "Tempo 追蹤攝取率異常低"
+          description: "Tempo 在過去 5 分鐘內的追蹤攝取率低於每秒 10 個 span，當前值: {{ $value }}"
+
+      # Loki 日誌攝取異常
+      - alert: LokiLogIngestionAnomaly
+        expr: |
+          rate(loki_distributor_lines_received_total[5m]) < 50
+        for: 5m
+        labels:
+          severity: warning
+          component: loki
+        annotations:
+          summary: "Loki 日誌攝取率異常低"
+          description: "Loki 在過去 5 分鐘內的日誌攝取率低於每秒 50 行，當前值: {{ $value }}"

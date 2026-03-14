@@ -12,6 +12,24 @@ spring:
         native:
           search-locations: classpath:/config-repo
 
+# 日誌配置 - 結構化日誌
+logging:
+  level:
+    com.microservices.config: INFO
+    org.springframework.cloud.config: INFO
+    org.springframework: WARN
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+  file:
+    name: logs/config-server.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB
+
 eureka:
   client:
     service-url:

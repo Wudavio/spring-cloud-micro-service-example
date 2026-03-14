@@ -1,0 +1,207 @@
+# OpenTelemetry 自監控告警規則
+# 用於監控 Collector 和 Agent 的健康狀況
+
+groups:
+  - name: opentelemetry-collector-alerts
+    rules:
+      # Collector 記憶體使用告警
+      - alert: OTelCollectorHighMemoryUsage
+        expr: process_resident_memory_bytes{job="otel-collector-self"} / 1024 / 1024 > 512
+        for: 5m
+        labels:
+          severity: warning
+          component: otel-collector
+          type: memory
+        annotations:
+          summary: "OpenTelemetry Collector 記憶體使用量過高"
+          description: "Collector 記憶體使用量 {{ $value }}MB，超過 512MB 閾值"
+
+      # Collector CPU 使用告警
+      - alert: OTelCollectorHighCPUUsage
+        expr: rate(process_cpu_seconds_total{job="otel-collector-self"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: otel-collector
+          type: cpu
+        annotations:
+          summary: "OpenTelemetry Collector CPU 使用率過高"
+          description: "Collector CPU 使用率 {{ $value }}%，超過 80% 閾值"
+
+      # Collector 接收器錯誤告警
+      - alert: OTelCollectorReceiverErrors
+        expr: rate(otelcol_receiver_refused_spans_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: critical
+          component: otel-collector
+          type: receiver-error
+        annotations:
+          summary: "OpenTelemetry Collector 接收器錯誤率過高"
+          description: "接收器 {{ $labels.receiver }} 拒絕 spans 速率 {{ $value }}/s"
+
+      # Collector 導出器錯誤告警
+      - alert: OTelCollectorExporterErrors
+        expr: rate(otelcol_exporter_send_failed_spans_total[5m]) > 5
+        for: 2m
+        labels:
+          severity: critical
+          component: otel-collector
+          type: exporter-error
+        annotations:
+          summary: "OpenTelemetry Collector 導出器錯誤率過高"
+          description: "導出器 {{ $labels.exporter }} 失敗 spans 速率 {{ $value }}/s"
+
+      # Collector 佇列滿載告警
+      - alert: OTelCollectorQueueFull
+        expr: otelcol_processor_batch_batch_send_size > 1800
+        for: 1m
+        labels:
+          severity: warning
+          component: otel-collector
+          type: queue-full
+        annotations:
+          summary: "OpenTelemetry Collector 批次佇列接近滿載"
+          description: "批次處理器 {{ $labels.processor }} 佇列大小 {{ $value }}，接近上限"
+
+      # Collector 健康檢查失敗告警
+      - alert: OTelCollectorHealthCheckFailed
+        expr: up{job="otel-collector-health"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: otel-collector
+          type: health-check
+        annotations:
+          summary: "OpenTelemetry Collector 健康檢查失敗"
+          description: "Collector 健康檢查端點無法訪問"
+
+      # Collector 處理延遲告警
+      - alert: OTelCollectorHighLatency
+        expr: histogram_quantile(0.95, rate(otelcol_processor_batch_batch_send_size_bucket[5m])) > 2000
+        for: 5m
+        labels:
+          severity: warning
+          component: otel-collector
+          type: latency
+        annotations:
+          summary: "OpenTelemetry Collector 處理延遲過高"
+          description: "批次處理器 95% 延遲 {{ $value }}ms"
+
+  - name: opentelemetry-agent-alerts
+    rules:
+      # Agent JVM 記憶體告警
+      - alert: OTelAgentHighJVMMemory
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: otel-agent
+          type: jvm-memory
+        annotations:
+          summary: "OpenTelemetry Agent JVM 堆記憶體使用率過高"
+          description: "服務 {{ $labels.service_name }} JVM 堆記憶體使用率 {{ $value }}%"
+
+      # Agent GC 頻率告警
+      - alert: OTelAgentHighGCFrequency
+        expr: rate(jvm_gc_collection_seconds_count[5m]) > 5
+        for: 3m
+        labels:
+          severity: warning
+          component: otel-agent
+          type: gc-frequency
+        annotations:
+          summary: "OpenTelemetry Agent GC 頻率過高"
+          description: "服務 {{ $labels.service_name }} GC 頻率 {{ $value }}/s"
+
+      # Agent 導出失敗告警
+      - alert: OTelAgentExportFailures
+        expr: increase(otel_sdk_export_failures_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: critical
+          component: otel-agent
+          type: export-failure
+        annotations:
+          summary: "OpenTelemetry Agent 導出失敗"
+          description: "服務 {{ $labels.service_name }} 導出失敗次數 {{ $value }}"
+
+      # Agent 取樣率異常告警
+      - alert: OTelAgentAbnormalSamplingRate
+        expr: rate(otel_sdk_traces_sampled_total[5m]) / rate(otel_sdk_traces_total[5m]) < 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: otel-agent
+          type: sampling-rate
+        annotations:
+          summary: "OpenTelemetry Agent 取樣率異常低"
+          description: "服務 {{ $labels.service_name }} 取樣率 {{ $value }}%，可能配置有誤"
+
+  - name: opentelemetry-infrastructure-alerts
+    rules:
+      # LGTM 堆疊連接告警
+      - alert: LGTMStackConnectionFailure
+        expr: up{job=~"mimir|tempo|loki|grafana"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: lgtm-stack
+          type: connection-failure
+        annotations:
+          summary: "LGTM 堆疊組件連接失敗"
+          description: "{{ $labels.job }} 服務無法訪問"
+
+      # 資料保留策略告警
+      - alert: OTelDataRetentionIssue
+        expr: increase(otelcol_exporter_send_failed_spans_total[1h]) > 1000
+        for: 10m
+        labels:
+          severity: warning
+          component: data-retention
+          type: retention-issue
+        annotations:
+          summary: "OpenTelemetry 資料保留問題"
+          description: "大量導出失敗可能導致資料丟失"
+
+      # 磁碟空間告警
+      - alert: OTelStorageDiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/tmp"} / node_filesystem_size_bytes{mountpoint="/tmp"}) * 100 < 20
+        for: 5m
+        labels:
+          severity: warning
+          component: storage
+          type: disk-space
+        annotations:
+          summary: "OpenTelemetry 存儲磁碟空間不足"
+          description: "備份存儲磁碟空間剩餘 {{ $value }}%"
+
+  - name: opentelemetry-performance-alerts
+    rules:
+      # 整體系統效能告警
+      - alert: OTelSystemPerformanceDegradation
+        expr: |
+          (
+            rate(otelcol_receiver_accepted_spans_total[5m]) - 
+            rate(otelcol_exporter_sent_spans_total[5m])
+          ) / rate(otelcol_receiver_accepted_spans_total[5m]) * 100 > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: system-performance
+          type: throughput-degradation
+        annotations:
+          summary: "OpenTelemetry 系統效能下降"
+          description: "spans 處理積壓率 {{ $value }}%，系統效能可能下降"
+
+      # 網路延遲告警
+      - alert: OTelNetworkLatencyHigh
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="otel-collector"}[5m])) > 1
+        for: 3m
+        labels:
+          severity: warning
+          component: network
+          type: latency
+        annotations:
+          summary: "OpenTelemetry 網路延遲過高"
+          description: "95% 網路請求延遲 {{ $value }}s"

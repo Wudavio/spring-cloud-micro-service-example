@@ -50,15 +50,23 @@ jwt:
   secret: ${JWT_SECRET:myVerySecretKeyForJWTTokenGeneration123456789}
   expiration: ${JWT_EXPIRATION:86400000} # 24小時
 
-# Logging 配置
+# Logging 配置 - 結構化日誌
 logging:
   level:
     com.microservices.auth: INFO
     org.springframework.security: INFO
+    org.springframework: WARN
     root: INFO
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+  file:
+    name: logs/auth-service.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB
 
 # Management endpoints
 management:

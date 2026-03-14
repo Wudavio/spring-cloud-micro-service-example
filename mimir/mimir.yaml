@@ -1,0 +1,62 @@
+# Mimir 配置檔案 - 最簡化版本
+# 用於存儲 OpenTelemetry 指標資料
+
+# 目標配置
+target: all
+
+# 多租戶配置
+multitenancy_enabled: false
+
+# 服務器配置
+server:
+  http_listen_port: 9009
+  grpc_listen_port: 9095
+  log_level: info
+
+# 分發器配置
+distributor:
+  ring:
+    kvstore:
+      store: inmemory
+
+# 攝取器配置
+ingester:
+  ring:
+    kvstore:
+      store: inmemory
+    replication_factor: 1
+
+# 查詢器配置
+querier:
+  max_concurrent: 20
+  timeout: 2m
+
+# 壓縮器配置
+compactor:
+  data_dir: /data/mimir/compactor
+  sharding_ring:
+    kvstore:
+      store: inmemory
+
+# 塊存儲配置
+blocks_storage:
+  backend: filesystem
+  filesystem:
+    dir: /data/mimir/blocks
+  tsdb:
+    dir: /data/mimir/tsdb
+
+# 限制配置
+limits:
+  ingestion_rate: 20000
+  ingestion_burst_size: 400000
+
+# 成員列表配置
+memberlist:
+  abort_if_cluster_join_fails: false
+  bind_port: 7946
+  join_members: []
+
+# 使用統計配置
+usage_stats:
+  enabled: false

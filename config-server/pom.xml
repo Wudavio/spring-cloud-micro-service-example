@@ -38,6 +38,22 @@
             <artifactId>jqwik</artifactId>
             <scope>test</scope>
         </dependency>
+        
+        <!-- Logback JSON 編碼器 -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+        </dependency>
+        <!-- Apache HttpClient 5 for Eureka client -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+        </dependency>
+        <!-- SnakeYAML for YAML configuration -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

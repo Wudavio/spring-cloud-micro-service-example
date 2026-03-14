@@ -1,0 +1,361 @@
+# OpenTelemetry 資料保留策略配置
+# 設定各類數據的保留期限和自動清理機制
+
+# 全域設定
+global:
+  # 預設時區
+  timezone: "Asia/Taipei"
+  
+  # 清理任務執行時間（每日凌晨 2:00）
+  cleanup_schedule: "0 2 * * *"
+  
+  # 清理任務並行度
+  cleanup_concurrency: 4
+  
+  # 清理日誌保留天數
+  cleanup_log_retention_days: 30
+  
+  # 緊急停止清理的磁碟使用率閾值（%）
+  emergency_stop_disk_usage: 95
+
+# 資料保留策略
+retention_policies:
+  # 指標資料保留策略
+  metrics:
+    # 高頻指標（秒級）
+    high_frequency:
+      retention_period: "7d"  # 7 天
+      resolution: "1s"
+      description: "高頻率指標，用於即時監控"
+      examples:
+        - "http_requests_per_second"
+        - "cpu_usage_percent"
+        - "memory_usage_bytes"
+        - "active_connections"
+      
+    # 中頻指標（分鐘級）
+    medium_frequency:
+      retention_period: "30d"  # 30 天
+      resolution: "1m"
+      description: "中頻率指標，用於短期分析"
+      examples:
+        - "error_rate_per_minute"
+        - "response_time_p95"
+        - "throughput_per_minute"
+        - "queue_depth"
+      
+    # 低頻指標（小時級）
+    low_frequency:
+      retention_period: "90d"  # 90 天
+      resolution: "1h"
+      description: "低頻率指標，用於長期趨勢分析"
+      examples:
+        - "daily_active_users"
+        - "business_metrics"
+        - "capacity_planning_metrics"
+        - "cost_metrics"
+      
+    # 歷史指標（日級）
+    historical:
+      retention_period: "365d"  # 1 年
+      resolution: "1d"
+      description: "歷史指標，用於年度報告和合規"
+      examples:
+        - "monthly_revenue"
+        - "annual_growth_rate"
+        - "compliance_metrics"
+        - "audit_metrics"
+
+  # 追蹤資料保留策略
+  traces:
+    # 錯誤追蹤
+    error_traces:
+      retention_period: "30d"  # 30 天
+      sampling_rate: 100  # 100% 保留所有錯誤追蹤
+      description: "所有錯誤和異常的追蹤資料"
+      priority: "high"
+      
+    # 慢請求追蹤
+    slow_traces:
+      retention_period: "14d"  # 14 天
+      sampling_rate: 100  # 100% 保留所有慢請求
+      threshold: "5s"  # 超過 5 秒的請求
+      description: "效能問題相關的追蹤資料"
+      priority: "high"
+      
+    # 正常追蹤
+    normal_traces:
+      retention_period: "7d"  # 7 天
+      sampling_rate: 10  # 10% 取樣保留
+      description: "正常請求的追蹤資料"
+      priority: "medium"
+      
+    # 健康檢查追蹤
+    health_check_traces:
+      retention_period: "1d"  # 1 天
+      sampling_rate: 1  # 1% 取樣保留
+      description: "健康檢查相關的追蹤資料"
+      priority: "low"
+
+  # 日誌資料保留策略
+  logs:
+    # 錯誤日誌
+    error_logs:
+      retention_period: "90d"  # 90 天
+      log_levels: ["ERROR", "FATAL"]
+      description: "錯誤和致命錯誤日誌"
+      priority: "high"
+      compression: true
+      
+    # 警告日誌
+    warning_logs:
+      retention_period: "30d"  # 30 天
+      log_levels: ["WARN"]
+      description: "警告級別日誌"
+      priority: "medium"
+      compression: true
+      
+    # 資訊日誌
+    info_logs:
+      retention_period: "14d"  # 14 天
+      log_levels: ["INFO"]
+      description: "資訊級別日誌"
+      priority: "medium"
+      compression: true
+      
+    # 除錯日誌
+    debug_logs:
+      retention_period: "3d"  # 3 天
+      log_levels: ["DEBUG", "TRACE"]
+      description: "除錯和追蹤級別日誌"
+      priority: "low"
+      compression: true
+      
+    # 審計日誌
+    audit_logs:
+      retention_period: "2555d"  # 7 年（合規要求）
+      log_levels: ["INFO", "WARN", "ERROR"]
+      description: "審計和合規相關日誌"
+      priority: "critical"
+      compression: true
+      immutable: true  # 不可變更或刪除
+
+# 自動清理配置
+auto_cleanup:
+  # 啟用自動清理
+  enabled: true
+  
+  # 清理策略
+  strategies:
+    # 基於時間的清理
+    time_based:
+      enabled: true
+      check_interval: "1h"  # 每小時檢查一次
+      batch_size: 1000  # 每批處理 1000 條記錄
+      
+    # 基於磁碟空間的清理
+    space_based:
+      enabled: true
+      # 當磁碟使用率超過 80% 時開始清理
+      disk_usage_threshold: 80
+      # 清理到磁碟使用率低於 70%
+      target_disk_usage: 70
+      # 清理優先順序（從低優先級開始清理）
+      cleanup_priority:
+        - "debug_logs"
+        - "health_check_traces"
+        - "normal_traces"
+        - "info_logs"
+        - "warning_logs"
+        - "high_frequency_metrics"
+        - "medium_frequency_metrics"
+        - "slow_traces"
+        - "error_logs"
+        - "error_traces"
+        - "low_frequency_metrics"
+        - "historical_metrics"
+        # audit_logs 永不自動清理
+      
+    # 基於資料量的清理
+    volume_based:
+      enabled: true
+      # 每個類別的最大記錄數
+      max_records:
+        metrics: 10000000  # 1000 萬條指標記錄
+        traces: 1000000    # 100 萬條追蹤記錄
+        logs: 5000000      # 500 萬條日誌記錄
+      # 超過限制時保留最新的記錄
+      keep_latest: true
+
+# 備份策略
+backup:
+  # 啟用備份
+  enabled: true
+  
+  # 備份排程（每週日凌晨 1:00）
+  schedule: "0 1 * * 0"
+  
+  # 備份保留期限
+  retention_period: "90d"
+  
+  # 備份壓縮
+  compression: true
+  
+  # 備份加密
+  encryption:
+    enabled: true
+    algorithm: "AES-256-GCM"
+    key_rotation_days: 90
+  
+  # 備份目標
+  targets:
+    # 本地備份
+    local:
+      enabled: true
+      path: "/backup/otel-data"
+      max_size: "100GB"
+      
+    # 雲端備份（可選）
+    cloud:
+      enabled: false
+      provider: "s3"  # s3, gcs, azure
+      bucket: "otel-backup-bucket"
+      region: "us-west-2"
+      
+  # 備份驗證
+  verification:
+    enabled: true
+    # 每月驗證一次備份完整性
+    schedule: "0 3 1 * *"
+    sample_rate: 10  # 驗證 10% 的備份檔案
+
+# 合規性設定
+compliance:
+  # GDPR 合規
+  gdpr:
+    enabled: true
+    # 個人資料保留期限
+    personal_data_retention: "30d"
+    # 被遺忘權實作
+    right_to_be_forgotten:
+      enabled: true
+      # 資料刪除確認期限
+      deletion_confirmation_days: 30
+      # 刪除日誌保留期限
+      deletion_log_retention: "7y"
+    
+  # CCPA 合規
+  ccpa:
+    enabled: true
+    # 消費者資料保留期限
+    consumer_data_retention: "12m"
+    
+  # SOX 合規
+  sox:
+    enabled: true
+    # 財務相關資料保留期限
+    financial_data_retention: "7y"
+    
+  # HIPAA 合規（如適用）
+  hipaa:
+    enabled: false
+    # 健康資料保留期限
+    health_data_retention: "6y"
+
+# 監控和告警
+monitoring:
+  # 清理任務監控
+  cleanup_monitoring:
+    enabled: true
+    # 清理失敗告警閾值
+    failure_threshold: 3
+    # 清理時間過長告警閾值（分鐘）
+    duration_threshold: 60
+    
+  # 磁碟空間監控
+  disk_monitoring:
+    enabled: true
+    # 磁碟使用率告警閾值
+    usage_warning_threshold: 75
+    usage_critical_threshold: 85
+    
+  # 資料保留合規監控
+  compliance_monitoring:
+    enabled: true
+    # 檢查頻率（每日）
+    check_frequency: "daily"
+    # 合規違規告警
+    violation_alert: true
+
+# 效能調優
+performance:
+  # 清理任務效能設定
+  cleanup_performance:
+    # 批次大小
+    batch_size: 1000
+    # 並行工作執行緒數
+    worker_threads: 4
+    # 每批之間的延遲（毫秒）
+    batch_delay_ms: 100
+    # 記憶體使用限制（MB）
+    memory_limit_mb: 512
+    
+  # 索引優化
+  indexing:
+    # 自動建立時間索引
+    auto_time_index: true
+    # 自動建立標籤索引
+    auto_label_index: true
+    # 索引維護排程
+    maintenance_schedule: "0 4 * * 1"  # 每週一凌晨 4:00
+
+# 通知設定
+notifications:
+  # 清理完成通知
+  cleanup_completion:
+    enabled: true
+    channels: ["email", "slack"]
+    
+  # 清理失敗通知
+  cleanup_failure:
+    enabled: true
+    channels: ["email", "slack", "pagerduty"]
+    
+  # 磁碟空間不足通知
+  disk_space_warning:
+    enabled: true
+    channels: ["email", "slack"]
+    
+  # 合規違規通知
+  compliance_violation:
+    enabled: true
+    channels: ["email", "slack", "audit_log"]
+
+# 報告設定
+reporting:
+  # 資料保留報告
+  retention_report:
+    enabled: true
+    # 報告生成頻率
+    frequency: "monthly"
+    # 報告格式
+    format: ["json", "csv", "pdf"]
+    # 報告內容
+    include:
+      - "retention_summary"
+      - "cleanup_statistics"
+      - "compliance_status"
+      - "disk_usage_trends"
+      - "cost_analysis"
+    
+  # 合規報告
+  compliance_report:
+    enabled: true
+    frequency: "quarterly"
+    format: ["pdf", "json"]
+    include:
+      - "gdpr_compliance"
+      - "ccpa_compliance"
+      - "sox_compliance"
+      - "data_processing_activities"
+      - "retention_policy_adherence"

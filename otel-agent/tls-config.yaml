@@ -1,0 +1,246 @@
+# OpenTelemetry TLS 配置
+# 統一管理所有服務的 TLS 設定
+
+# 全域 TLS 配置
+global:
+  tls_enabled: true
+  ca_cert_file: "/certs/ca-cert.pem"
+  cert_validity_days: 365
+  key_size: 2048
+  cipher_suites:
+    - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+    - "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+    - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+    - "TLS_RSA_WITH_AES_256_GCM_SHA384"
+    - "TLS_RSA_WITH_AES_128_GCM_SHA256"
+  min_tls_version: "1.2"
+  max_tls_version: "1.3"
+
+# OpenTelemetry Collector TLS 配置
+otel_collector:
+  service_name: "otel-collector"
+  cert_file: "/certs/otel-collector-cert.pem"
+  key_file: "/certs/otel-collector-key.pem"
+  
+  # 接收器 TLS 配置
+  receivers:
+    otlp_grpc:
+      endpoint: "0.0.0.0:4327"
+      tls:
+        cert_file: "/certs/otel-collector-cert.pem"
+        key_file: "/certs/otel-collector-key.pem"
+        ca_file: "/certs/ca-cert.pem"
+        client_ca_file: "/certs/ca-cert.pem"
+        reload_interval: "1h"
+    otlp_http:
+      endpoint: "0.0.0.0:4328"
+      tls:
+        cert_file: "/certs/otel-collector-cert.pem"
+        key_file: "/certs/otel-collector-key.pem"
+        ca_file: "/certs/ca-cert.pem"
+        client_ca_file: "/certs/ca-cert.pem"
+        reload_interval: "1h"
+  
+  # 導出器 TLS 配置
+  exporters:
+    mimir:
+      endpoint: "https://mimir:9009/api/v1/push"
+      tls:
+        cert_file: "/certs/otel-collector-cert.pem"
+        key_file: "/certs/otel-collector-key.pem"
+        ca_file: "/certs/ca-cert.pem"
+        server_name_override: "mimir"
+    tempo:
+      endpoint: "https://tempo:4317"
+      tls:
+        cert_file: "/certs/otel-collector-cert.pem"
+        key_file: "/certs/otel-collector-key.pem"
+        ca_file: "/certs/ca-cert.pem"
+        server_name_override: "tempo"
+    loki:
+      endpoint: "https://loki:3100/loki/api/v1/push"
+      tls:
+        cert_file: "/certs/otel-collector-cert.pem"
+        key_file: "/certs/otel-collector-key.pem"
+        ca_file: "/certs/ca-cert.pem"
+        server_name_override: "loki"
+
+# LGTM 堆疊 TLS 配置
+lgtm_stack:
+  # Mimir TLS 配置
+  mimir:
+    service_name: "mimir"
+    cert_file: "/certs/mimir-cert.pem"
+    key_file: "/certs/mimir-key.pem"
+    http_tls:
+      cert_file: "/certs/mimir-cert.pem"
+      key_file: "/certs/mimir-key.pem"
+      client_auth_type: "RequireAndVerifyClientCert"
+      client_ca_file: "/certs/ca-cert.pem"
+  
+  # Tempo TLS 配置
+  tempo:
+    service_name: "tempo"
+    cert_file: "/certs/tempo-cert.pem"
+    key_file: "/certs/tempo-key.pem"
+    http_tls:
+      cert_file: "/certs/tempo-cert.pem"
+      key_file: "/certs/tempo-key.pem"
+      client_auth_type: "RequireAndVerifyClientCert"
+      client_ca_file: "/certs/ca-cert.pem"
+    grpc_tls:
+      cert_file: "/certs/tempo-cert.pem"
+      key_file: "/certs/tempo-key.pem"
+      client_auth_type: "RequireAndVerifyClientCert"
+      client_ca_file: "/certs/ca-cert.pem"
+  
+  # Loki TLS 配置
+  loki:
+    service_name: "loki"
+    cert_file: "/certs/loki-cert.pem"
+    key_file: "/certs/loki-key.pem"
+    http_tls:
+      cert_file: "/certs/loki-cert.pem"
+      key_file: "/certs/loki-key.pem"
+      client_auth_type: "RequireAndVerifyClientCert"
+      client_ca_file: "/certs/ca-cert.pem"
+  
+  # Grafana TLS 配置
+  grafana:
+    service_name: "grafana"
+    cert_file: "/certs/grafana-cert.pem"
+    key_file: "/certs/grafana-key.pem"
+    protocol: "https"
+    cert_file_path: "/certs/grafana-cert.pem"
+    cert_key_path: "/certs/grafana-key.pem"
+
+# 微服務 TLS 配置
+microservices:
+  # Eureka Server
+  eureka_server:
+    service_name: "eureka-server"
+    cert_file: "/certs/eureka-server-cert.pem"
+    key_file: "/certs/eureka-server-key.pem"
+    otel_exporter:
+      endpoint: "https://otel-collector:4327"
+      tls:
+        cert_file: "/certs/eureka-server-cert.pem"
+        key_file: "/certs/eureka-server-key.pem"
+        ca_file: "/certs/ca-cert.pem"
+  
+  # Config Server
+  config_server:
+    service_name: "config-server"
+    cert_file: "/certs/config-server-cert.pem"
+    key_file: "/certs/config-server-key.pem"
+    otel_exporter:
+      endpoint: "https://otel-collector:4327"
+      tls:
+        cert_file: "/certs/config-server-cert.pem"
+        key_file: "/certs/config-server-key.pem"
+        ca_file: "/certs/ca-cert.pem"
+  
+  # API Gateway
+  api_gateway:
+    service_name: "api-gateway"
+    cert_file: "/certs/api-gateway-cert.pem"
+    key_file: "/certs/api-gateway-key.pem"
+    otel_exporter:
+      endpoint: "https://otel-collector:4327"
+      tls:
+        cert_file: "/certs/api-gateway-cert.pem"
+        key_file: "/certs/api-gateway-key.pem"
+        ca_file: "/certs/ca-cert.pem"
+  
+  # Product Service
+  product_service:
+    service_name: "product-service"
+    cert_file: "/certs/product-service-cert.pem"
+    key_file: "/certs/product-service-key.pem"
+    otel_exporter:
+      endpoint: "https://otel-collector:4327"
+      tls:
+        cert_file: "/certs/product-service-cert.pem"
+        key_file: "/certs/product-service-key.pem"
+        ca_file: "/certs/ca-cert.pem"
+  
+  # Inventory Service
+  inventory_service:
+    service_name: "inventory-service"
+    cert_file: "/certs/inventory-service-cert.pem"
+    key_file: "/certs/inventory-service-key.pem"
+    otel_exporter:
+      endpoint: "https://otel-collector:4327"
+      tls:
+        cert_file: "/certs/inventory-service-cert.pem"
+        key_file: "/certs/inventory-service-key.pem"
+        ca_file: "/certs/ca-cert.pem"
+  
+  # Order Service
+  order_service:
+    service_name: "order-service"
+    cert_file: "/certs/order-service-cert.pem"
+    key_file: "/certs/order-service-key.pem"
+    otel_exporter:
+      endpoint: "https://otel-collector:4327"
+      tls:
+        cert_file: "/certs/order-service-cert.pem"
+        key_file: "/certs/order-service-key.pem"
+        ca_file: "/certs/ca-cert.pem"
+  
+  # Auth Service
+  auth_service:
+    service_name: "auth-service"
+    cert_file: "/certs/auth-service-cert.pem"
+    key_file: "/certs/auth-service-key.pem"
+    otel_exporter:
+      endpoint: "https://otel-collector:4327"
+      tls:
+        cert_file: "/certs/auth-service-cert.pem"
+        key_file: "/certs/auth-service-key.pem"
+        ca_file: "/certs/ca-cert.pem"
+
+# TLS 安全策略
+security_policies:
+  # 憑證輪換策略
+  certificate_rotation:
+    enabled: true
+    rotation_interval: "30d"  # 30 天輪換一次
+    warning_threshold: "7d"   # 7 天前開始警告
+    auto_reload: true
+  
+  # 憑證驗證策略
+  certificate_validation:
+    verify_client_cert: true
+    verify_server_cert: true
+    check_cert_expiry: true
+    allow_self_signed: false
+  
+  # 安全標頭
+  security_headers:
+    strict_transport_security: "max-age=31536000; includeSubDomains"
+    content_security_policy: "default-src 'self'"
+    x_frame_options: "DENY"
+    x_content_type_options: "nosniff"
+
+# 監控和告警
+monitoring:
+  # TLS 憑證監控
+  certificate_monitoring:
+    enabled: true
+    check_interval: "1h"
+    expiry_warning_days: 30
+    metrics:
+      - certificate_expiry_days
+      - certificate_validation_errors
+      - tls_handshake_duration
+      - tls_connection_errors
+  
+  # TLS 效能監控
+  performance_monitoring:
+    enabled: true
+    metrics:
+      - tls_handshake_latency
+      - tls_connection_count
+      - tls_cipher_suite_usage
+      - tls_protocol_version_usage

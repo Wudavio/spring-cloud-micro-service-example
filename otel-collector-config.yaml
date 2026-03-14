@@ -1,0 +1,149 @@
+# OpenTelemetry Collector 簡化配置檔案
+# 相容最新版本的 OpenTelemetry Collector
+
+receivers:
+  # OTLP 接收器 - 接收來自 OpenTelemetry SDK 的數據
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4327
+      http:
+        endpoint: 0.0.0.0:4328
+
+  # Prometheus 接收器 - 收集 Collector 自身的指標
+  prometheus/self:
+    config:
+      scrape_configs:
+        - job_name: 'otel-collector-self'
+          scrape_interval: 30s
+          static_configs:
+            - targets: ['localhost:8888']
+          metrics_path: /metrics
+
+  # 主機指標接收器 - 收集主機系統指標
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      memory:
+      load:
+      disk:
+      filesystem:
+      network:
+
+processors:
+  # 記憶體限制器 - 防止記憶體溢出 (必須放在第一位)
+  memory_limiter:
+    limit_mib: 512
+    spike_limit_mib: 128
+    check_interval: 1s
+
+  # 批次處理器 - 提高導出效率
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+  
+  # 資源處理器 - 添加統一的資源屬性
+  resource:
+    attributes:
+      - key: environment
+        value: development
+        action: upsert
+      - key: cluster
+        value: microservices-cluster
+        action: upsert
+      - key: service.namespace
+        value: microservices
+        action: upsert
+      - key: collector.version
+        value: "0.91.0"
+        action: upsert
+
+  # 取樣處理器 - 實作智能取樣以減少負載
+  probabilistic_sampler:
+    hash_seed: 22
+    sampling_percentage: 15.3
+
+exporters:
+  # 調試導出器 - 用於開發和故障排除
+  debug:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+  # Prometheus Remote Write 導出器 - 將指標發送到 Mimir
+  prometheusremotewrite:
+    endpoint: http://mimir:9009/api/v1/push
+    timeout: 30s
+    headers:
+      "X-Scope-OrgID": "tenant-1"
+
+  # OTLP 導出器 - 將追蹤發送到 Tempo
+  otlp/tempo:
+    endpoint: http://tempo:4317
+    tls:
+      insecure: true
+    timeout: 30s
+    compression: gzip
+    headers:
+      "X-Scope-OrgID": "tenant-1"
+
+  # Loki 導出器 - 透過 OTLP 將日誌發送到 Loki (Loki 3.x 支援 OTLP 原生接收)
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+    timeout: 30s
+
+service:
+  # 擴展配置
+  extensions: [health_check, pprof, zpages]
+
+  # 遙測管道配置
+  pipelines:
+    # 指標管道
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheusremotewrite]
+
+    # 追蹤管道 (移除 probabilistic_sampler，改由服務層控制取樣率)
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp/tempo]
+
+    # 日誌管道 - 發送到 Loki (OTLP)
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlphttp/loki]
+
+    # 自監控指標管道
+    metrics/self:
+      receivers: [prometheus/self, hostmetrics]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheusremotewrite, debug]
+
+  # 遙測配置 - 監控 Collector 本身
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: detailed
+
+# 擴展配置
+extensions:
+  # 健康檢查擴展
+  health_check:
+    endpoint: 0.0.0.0:13133
+    path: /health
+
+  # 效能分析擴展
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+  # zPages 擴展 - 提供內部狀態視圖
+  zpages:
+    endpoint: 0.0.0.0:55679
