@@ -1,8 +1,8 @@
 package com.microservices.auth.exception;
 
 import com.microservices.common.api.ApiErrorResponse;
+import com.microservices.common.api.BaseApiExceptionHandler;
 import jakarta.servlet.http.HttpServletRequest;
-import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -14,7 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends BaseApiExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiErrorResponse> validation(MethodArgumentNotValidException ex, HttpServletRequest req) {
@@ -47,17 +47,5 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.security.authentication.AuthenticationCredentialsNotFoundException.class)
     ResponseEntity<ApiErrorResponse> tokenRejected(Exception ex, HttpServletRequest req) {
         return error(HttpStatus.UNAUTHORIZED, "INVALID_TOKEN", ex.getMessage(), req, Map.of());
-    }
-
-    @ExceptionHandler(Exception.class)
-    ResponseEntity<ApiErrorResponse> general(Exception ex, HttpServletRequest req) {
-        return error(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR",
-                "An unexpected error occurred", req, Map.of());
-    }
-
-    private ResponseEntity<ApiErrorResponse> error(HttpStatus status, String code, String message,
-                                                    HttpServletRequest req, Map<String, String> details) {
-        return ResponseEntity.status(status).body(ApiErrorResponse.of(status.value(), code, message,
-                req.getRequestURI(), MDC.get("traceId"), details));
     }
 }

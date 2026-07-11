@@ -52,6 +52,13 @@ server:
 jwt:
   secret: ${JWT_SECRET}
 
+# DANGER: security.write-guard.enabled=false disables JWT signature checks for inventory
+# mutations (Spring Security permits /inventory/**; only InventoryWriteGuardFilter enforces them).
+# Never set false outside automated tests.
+# security:
+#   write-guard:
+#     enabled: true
+
 # 日誌配置 - 結構化日誌
 logging:
   level:

@@ -14,6 +14,8 @@ spring:
         max-interval: 2000
         multiplier: 1.1
     gateway:
+      # Local / bootstrap fallback. Docker (config-server enabled) prefers
+      # config-repo/api-gateway.yml — keep CORS keys in sync when editing either file.
       globalcors:
         add-to-simple-url-handler-mapping: true
         cors-configurations:

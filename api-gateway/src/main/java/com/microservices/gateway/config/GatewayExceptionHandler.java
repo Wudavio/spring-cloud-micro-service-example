@@ -43,8 +43,9 @@ public class GatewayExceptionHandler implements WebExceptionHandler {
                 ? "No route is available for this request"
                 : (exception.getMessage() == null || exception.getMessage().isBlank()
                     ? "Gateway request failed" : exception.getMessage());
+        // WebFlux does not propagate SLF4J MDC; prefer inbound tracing headers when present.
         ApiErrorResponse error = ApiErrorResponse.of(status.value(), code, message,
-                exchange.getRequest().getPath().value(), MDC.get("traceId"), Map.of());
+                exchange.getRequest().getPath().value(), resolveTraceId(exchange), Map.of());
         try {
             byte[] body = objectMapper.writeValueAsBytes(error);
             exchange.getResponse().setStatusCode(status);
@@ -64,5 +65,21 @@ public class GatewayExceptionHandler implements WebExceptionHandler {
             return resolved == null ? HttpStatus.INTERNAL_SERVER_ERROR : resolved;
         }
         return HttpStatus.BAD_GATEWAY;
+    }
+
+    private String resolveTraceId(ServerWebExchange exchange) {
+        String b3 = exchange.getRequest().getHeaders().getFirst("X-B3-TraceId");
+        if (b3 != null && !b3.isBlank()) {
+            return b3;
+        }
+        String traceparent = exchange.getRequest().getHeaders().getFirst("traceparent");
+        if (traceparent != null) {
+            String[] parts = traceparent.split("-");
+            if (parts.length >= 2 && !parts[1].isBlank()) {
+                return parts[1];
+            }
+        }
+        String mdc = MDC.get("traceId");
+        return mdc; // usually null on WebFlux; kept as last resort
     }
 }

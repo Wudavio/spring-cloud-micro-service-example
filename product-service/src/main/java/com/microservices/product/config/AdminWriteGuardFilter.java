@@ -9,6 +9,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -26,6 +28,7 @@ import java.util.Set;
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
 public class AdminWriteGuardFilter extends OncePerRequestFilter {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminWriteGuardFilter.class);
     private static final Set<String> WRITE_METHODS = Set.of("POST", "PUT", "PATCH", "DELETE");
 
     @Value("${security.write-guard.enabled:true}")
@@ -50,6 +53,8 @@ public class AdminWriteGuardFilter extends OncePerRequestFilter {
 
         String auth = request.getHeader("Authorization");
         if (auth == null || !auth.startsWith("Bearer ")) {
+            log.warn("Product write rejected: missing Authorization on {} {}",
+                    request.getMethod(), request.getRequestURI());
             writeError(request, response, HttpServletResponse.SC_UNAUTHORIZED,
                     "AUTHENTICATION_REQUIRED", "Missing Authorization header");
             return;
@@ -59,11 +64,15 @@ public class AdminWriteGuardFilter extends OncePerRequestFilter {
         try {
             role = parseClaims(auth.substring(7)).get("role", String.class);
         } catch (Exception ex) {
+            log.warn("Product write rejected: invalid/expired token on {} {}",
+                    request.getMethod(), request.getRequestURI());
             writeError(request, response, HttpServletResponse.SC_UNAUTHORIZED,
                     "INVALID_TOKEN", "Invalid or expired token");
             return;
         }
         if (!"ADMIN".equalsIgnoreCase(role)) {
+            log.warn("Product write rejected: role={} on {} {}",
+                    role, request.getMethod(), request.getRequestURI());
             writeError(request, response, HttpServletResponse.SC_FORBIDDEN,
                     "ACCESS_DENIED", "ADMIN role required for product mutations");
             return;

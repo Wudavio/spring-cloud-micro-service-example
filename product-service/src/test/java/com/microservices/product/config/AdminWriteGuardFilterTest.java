@@ -44,6 +44,17 @@ class AdminWriteGuardFilterTest {
         assertThat(invoke(token).getStatus()).isEqualTo(200);
     }
 
+    @Test
+    void rejectsExpiredAdminToken() throws Exception {
+        String token = Jwts.builder().claim("role", "ADMIN")
+                .setExpiration(new Date(System.currentTimeMillis() - 60_000))
+                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)), SignatureAlgorithm.HS256)
+                .compact();
+        MockHttpServletResponse response = invoke(token);
+        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(response.getContentAsString()).contains("INVALID_TOKEN");
+    }
+
     private MockHttpServletResponse invoke(String token) throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/products");
         request.addHeader("Authorization", "Bearer " + token);

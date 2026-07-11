@@ -54,6 +54,17 @@ class InventoryWriteGuardFilterTest {
                 .getStatus()).isEqualTo(401);
     }
 
+    @Test
+    void rejectsExpiredAdminToken() throws Exception {
+        String expired = Jwts.builder().claim("role", "ADMIN")
+                .setExpiration(new Date(System.currentTimeMillis() - 60_000))
+                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)), SignatureAlgorithm.HS256)
+                .compact();
+        MockHttpServletResponse response = invoke("PUT", "/inventory/1/stock", expired);
+        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(response.getContentAsString()).contains("INVALID_TOKEN");
+    }
+
     private String signed(String role) {
         return Jwts.builder().claim("role", role)
                 .setExpiration(new Date(System.currentTimeMillis() + 60_000))

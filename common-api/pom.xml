@@ -15,5 +15,21 @@
             <groupId>org.springframework.data</groupId>
             <artifactId>spring-data-commons</artifactId>
         </dependency>
+        <!-- Provided by each web service at runtime; used by BaseApiExceptionHandler -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 </project>

@@ -34,6 +34,13 @@ server:
 jwt:
   secret: ${JWT_SECRET}
 
+# DANGER: security.write-guard.enabled=false disables JWT signature + ADMIN checks
+# for product mutations (SecurityConfig permits writes; only AdminWriteGuardFilter enforces them).
+# Never set false outside automated tests.
+# security:
+#   write-guard:
+#     enabled: true
+
 # 日誌配置 - 結構化日誌
 logging:
   level:

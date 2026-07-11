@@ -257,7 +257,7 @@ public class InventoryServiceImpl implements InventoryService {
         inventoryRepository.save(inventory);
 
         // 創建確認預留記錄（永不過期，直到訂單完成或取消）
-        LocalDateTime neverExpires = LocalDateTime.now().plusYears(10);
+        LocalDateTime neverExpires = LocalDateTime.now(java.time.ZoneOffset.UTC).plusYears(10);
         InventoryReservation confirmedReservation = new InventoryReservation(
                 productId, userId, quantity, ReservationType.CONFIRMED, neverExpires);
         confirmedReservation = reservationRepository.save(confirmedReservation);
@@ -329,7 +329,7 @@ public class InventoryServiceImpl implements InventoryService {
 
         // 剩餘預留只重建記錄，不可再改 available/temporaryReserved（避免雙重加減）
         if (remainingQuantity > 0) {
-            LocalDateTime expiresAt = LocalDateTime.now().plusHours(24);
+            LocalDateTime expiresAt = LocalDateTime.now(java.time.ZoneOffset.UTC).plusHours(24);
             InventoryReservation newReservation = new InventoryReservation(
                     productId, userId, remainingQuantity, ReservationType.TEMPORARY, expiresAt);
             reservationRepository.save(newReservation);
@@ -401,7 +401,7 @@ public class InventoryServiceImpl implements InventoryService {
 
         // 剩餘確認預留只重建記錄，不可再累加 confirmedReserved
         if (remainingQuantity > 0) {
-            LocalDateTime neverExpires = LocalDateTime.now().plusYears(10);
+            LocalDateTime neverExpires = LocalDateTime.now(java.time.ZoneOffset.UTC).plusYears(10);
             InventoryReservation newReservation = new InventoryReservation(
                     productId, userId, remainingQuantity, ReservationType.CONFIRMED, neverExpires);
             reservationRepository.save(newReservation);
@@ -499,7 +499,7 @@ public class InventoryServiceImpl implements InventoryService {
     public int cleanupExpiredTemporaryReservations() {
         logger.info("開始清理過期的臨時預留");
         
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
         List<InventoryReservation> expiredReservations = reservationRepository
                 .findByTypeAndExpiresAtBefore(ReservationType.TEMPORARY, now);
         

@@ -1,9 +1,11 @@
 package com.microservices.inventory.exception;
 
 import com.microservices.common.api.ApiErrorResponse;
+import com.microservices.common.api.BaseApiExceptionHandler;
 import com.microservices.inventory.service.InventoryService;
 import jakarta.servlet.http.HttpServletRequest;
-import org.slf4j.MDC;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,7 +16,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends BaseApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(InventoryService.InsufficientStockException.class)
     ResponseEntity<ApiErrorResponse> insufficient(InventoryService.InsufficientStockException ex, HttpServletRequest req) {
@@ -43,24 +47,23 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Request validation failed", req, details);
     }
 
+    /**
+     * Controllers historically wrap checked inventory exceptions in RuntimeException.
+     * Unwrap known causes so they stay 4xx/409 instead of falling into 500.
+     */
     @ExceptionHandler(RuntimeException.class)
     ResponseEntity<ApiErrorResponse> wrapped(RuntimeException ex, HttpServletRequest req) {
-        if (ex.getCause() instanceof InventoryService.InsufficientStockException cause) return insufficient(cause, req);
-        if (ex.getCause() instanceof InventoryService.ReservationNotFoundException cause) return reservationNotFound(cause, req);
-        if (ex.getCause() instanceof InventoryService.ConcurrentModificationException cause) return concurrent(cause, req);
+        if (ex.getCause() instanceof InventoryService.InsufficientStockException cause) {
+            return insufficient(cause, req);
+        }
+        if (ex.getCause() instanceof InventoryService.ReservationNotFoundException cause) {
+            return reservationNotFound(cause, req);
+        }
+        if (ex.getCause() instanceof InventoryService.ConcurrentModificationException cause) {
+            return concurrent(cause, req);
+        }
+        log.error("Unhandled runtime exception on {}", req.getRequestURI(), ex);
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR",
                 "An unexpected error occurred", req, Map.of());
-    }
-
-    @ExceptionHandler(Exception.class)
-    ResponseEntity<ApiErrorResponse> general(Exception ex, HttpServletRequest req) {
-        return error(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR",
-                "An unexpected error occurred", req, Map.of());
-    }
-
-    private ResponseEntity<ApiErrorResponse> error(HttpStatus status, String code, String message,
-                                                    HttpServletRequest req, Map<String, String> details) {
-        return ResponseEntity.status(status).body(ApiErrorResponse.of(status.value(), code, message,
-                req.getRequestURI(), MDC.get("traceId"), details));
     }
 }

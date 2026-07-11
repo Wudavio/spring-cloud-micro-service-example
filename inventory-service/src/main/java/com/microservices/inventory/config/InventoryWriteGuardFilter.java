@@ -9,6 +9,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -29,6 +31,7 @@ import java.util.Set;
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
 public class InventoryWriteGuardFilter extends OncePerRequestFilter {
 
+    private static final Logger log = LoggerFactory.getLogger(InventoryWriteGuardFilter.class);
     private static final Set<String> MUTATING = Set.of("POST", "PUT", "PATCH", "DELETE");
 
     @Value("${security.write-guard.enabled:true}")
@@ -66,6 +69,7 @@ public class InventoryWriteGuardFilter extends OncePerRequestFilter {
 
         String auth = request.getHeader("Authorization");
         if (auth == null || !auth.startsWith("Bearer ")) {
+            log.warn("Inventory write rejected: missing Authorization on {} {}", method, path);
             writeError(request, response, HttpServletResponse.SC_UNAUTHORIZED,
                     "AUTHENTICATION_REQUIRED", "Missing Authorization header");
             return;
@@ -75,6 +79,7 @@ public class InventoryWriteGuardFilter extends OncePerRequestFilter {
         try {
             claims = parseClaims(auth.substring(7));
         } catch (Exception ex) {
+            log.warn("Inventory write rejected: invalid/expired token on {} {}", method, path);
             writeError(request, response, HttpServletResponse.SC_UNAUTHORIZED,
                     "INVALID_TOKEN", "Invalid or expired token");
             return;
@@ -83,6 +88,7 @@ public class InventoryWriteGuardFilter extends OncePerRequestFilter {
         if (requiresAdmin(path, method)) {
             String role = claims.get("role", String.class);
             if (!"ADMIN".equalsIgnoreCase(role)) {
+                log.warn("Inventory write rejected: role={} on {} {}", role, method, path);
                 writeError(request, response, HttpServletResponse.SC_FORBIDDEN,
                         "ACCESS_DENIED", "ADMIN role required for stock management");
                 return;

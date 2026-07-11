@@ -1,8 +1,8 @@
 package com.microservices.product.exception;
 
 import com.microservices.common.api.ApiErrorResponse;
+import com.microservices.common.api.BaseApiExceptionHandler;
 import jakarta.servlet.http.HttpServletRequest;
-import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -13,7 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends BaseApiExceptionHandler {
 
     @ExceptionHandler(ProductNotFoundException.class)
     ResponseEntity<ApiErrorResponse> notFound(ProductNotFoundException ex, HttpServletRequest request) {
@@ -35,17 +35,5 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<ApiErrorResponse> invalidRequest(IllegalArgumentException ex, HttpServletRequest request) {
         return error(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", ex.getMessage(), request, Map.of());
-    }
-
-    @ExceptionHandler(Exception.class)
-    ResponseEntity<ApiErrorResponse> general(Exception ex, HttpServletRequest request) {
-        return error(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR",
-                "An unexpected error occurred", request, Map.of());
-    }
-
-    private ResponseEntity<ApiErrorResponse> error(HttpStatus status, String code, String message,
-                                                    HttpServletRequest request, Map<String, String> details) {
-        return ResponseEntity.status(status).body(ApiErrorResponse.of(status.value(), code, message,
-                request.getRequestURI(), MDC.get("traceId"), details));
     }
 }

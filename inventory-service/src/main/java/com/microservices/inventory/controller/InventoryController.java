@@ -140,12 +140,10 @@ public class InventoryController {
                    productId, request.getUserId(), request.getQuantity());
         
         try {
-            // 如果沒有指定過期時間，預設為30分鐘後過期
+            // 一律以 UTC LocalDateTime 存儲／比較，與 ReservationDTO 的 OffsetDateTime(UTC) 對齊
             LocalDateTime expiresAt = request.getExpiresAt() == null
-                    ? null : request.getExpiresAt().toInstant().atOffset(java.time.ZoneOffset.UTC).toLocalDateTime();
-            if (expiresAt == null) {
-                expiresAt = LocalDateTime.now().plusMinutes(30);
-            }
+                    ? LocalDateTime.now(java.time.ZoneOffset.UTC).plusMinutes(30)
+                    : request.getExpiresAt().withOffsetSameInstant(java.time.ZoneOffset.UTC).toLocalDateTime();
             
             InventoryReservation reservation = inventoryService.reserveTemporary(
                 productId, 

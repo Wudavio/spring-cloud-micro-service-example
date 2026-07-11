@@ -118,7 +118,8 @@ public class InventoryReservation {
      * 檢查預留是否已過期
      */
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiresAt);
+        // expiresAt is stored as UTC wall-clock LocalDateTime
+        return LocalDateTime.now(java.time.ZoneOffset.UTC).isAfter(expiresAt);
     }
     
     /**
