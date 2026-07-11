@@ -201,7 +201,7 @@
             "type": "prometheus",
             "uid": "mimir"
           },
-          "expr": "rate(process_cpu_seconds_total{job=\"otel-collector-self\"}[5m]) * 100",
+          "expr": "rate(otelcol_process_cpu_seconds_total{job=\"microservices/otelcol-contrib\"}[5m]) * 100",
           "interval": "",
           "legendFormat": "CPU 使用率",
           "refId": "A"

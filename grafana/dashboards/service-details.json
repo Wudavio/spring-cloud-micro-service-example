@@ -591,7 +591,7 @@
             "type": "prometheus",
             "uid": "mimir"
           },
-          "expr": "rate(process_cpu_seconds_total{job=\"$service\"}[5m]) * 100",
+          "expr": "process_cpu_usage{job=\"$service\"} * 100",
           "interval": "",
           "legendFormat": "CPU 使用率",
           "refId": "A"
@@ -878,9 +878,9 @@
             "type": "prometheus",
             "uid": "mimir"
           },
-          "expr": "rate(jvm_gc_collection_seconds_sum{job=\"$service\"}[5m])",
+          "expr": "rate(jvm_gc_pause_seconds_sum{job=\"$service\"}[5m])",
           "interval": "",
-          "legendFormat": "{{gc}} GC 時間",
+          "legendFormat": "{{gc}} / {{cause}}",
           "refId": "A"
         }
       ],
@@ -1125,7 +1125,7 @@
           "type": "prometheus",
           "uid": "mimir"
         },
-        "definition": "label_values(up{job=~\".*-service|eureka-server|config-server|api-gateway\"}, job)",
+        "definition": "label_values(process_cpu_usage{job=~\"microservices/.*\"}, job)",
         "hide": 0,
         "includeAll": false,
         "label": "服務",
@@ -1133,7 +1133,7 @@
         "name": "service",
         "options": [],
         "query": {
-          "query": "label_values(up{job=~\".*-service|eureka-server|config-server|api-gateway\"}, job)",
+          "query": "label_values(process_cpu_usage{job=~\"microservices/.*\"}, job)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,

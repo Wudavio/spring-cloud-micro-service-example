@@ -477,7 +477,7 @@
             "type": "prometheus",
             "uid": "mimir"
           },
-          "expr": "rate(process_cpu_seconds_total{job=~\".*-service|eureka-server|config-server|api-gateway\"}[5m]) * 100",
+          "expr": "process_cpu_usage{job=~\"microservices/(.*-service|api-gateway|eureka-server|config-server)\"} * 100",
           "interval": "",
           "legendFormat": "{{job}} CPU",
           "refId": "A"
@@ -655,9 +655,9 @@
             "type": "prometheus",
             "uid": "mimir"
           },
-          "expr": "rate(jvm_gc_collection_seconds_sum{job=~\".*-service|eureka-server|config-server|api-gateway\"}[5m])",
+          "expr": "rate(jvm_gc_pause_seconds_sum{job=~\"microservices/(.*-service|api-gateway|eureka-server|config-server)\"}[5m])",
           "interval": "",
-          "legendFormat": "{{job}} {{gc}} GC 時間",
+          "legendFormat": "{{job}} {{gc}}",
           "refId": "A"
         }
       ],

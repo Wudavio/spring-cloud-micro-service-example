@@ -760,7 +760,7 @@
             "type": "prometheus",
             "uid": "mimir"
           },
-          "expr": "sum(increase(jvm_gc_collection_seconds_count{job=~\".*-service|eureka-server|config-server|api-gateway\"}[5m])) by (job)",
+          "expr": "sum(increase(jvm_gc_pause_seconds_count{job=~\"microservices/(.*-service|api-gateway|eureka-server|config-server)\"}[5m])) by (job)",
           "interval": "",
           "legendFormat": "{{job}} GC 次數",
           "refId": "A"

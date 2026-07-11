@@ -156,8 +156,9 @@ public interface InventoryServiceClient {
         private String customerId;
         private Integer quantity;
         private String type;
-        @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-        private java.time.LocalDateTime expiresAt;
+        // Inventory service returns ISO-8601 with offset (e.g. 2026-07-11T16:53:38.90632627Z)
+        private java.time.OffsetDateTime expiresAt;
+        private java.time.OffsetDateTime createdAt;
         
         public ReservationDTO() {}
         
@@ -202,12 +203,20 @@ public interface InventoryServiceClient {
             this.type = type;
         }
         
-        public java.time.LocalDateTime getExpiresAt() {
+        public java.time.OffsetDateTime getExpiresAt() {
             return expiresAt;
         }
         
-        public void setExpiresAt(java.time.LocalDateTime expiresAt) {
+        public void setExpiresAt(java.time.OffsetDateTime expiresAt) {
             this.expiresAt = expiresAt;
+        }
+
+        public java.time.OffsetDateTime getCreatedAt() {
+            return createdAt;
+        }
+
+        public void setCreatedAt(java.time.OffsetDateTime createdAt) {
+            this.createdAt = createdAt;
         }
     }
 }
