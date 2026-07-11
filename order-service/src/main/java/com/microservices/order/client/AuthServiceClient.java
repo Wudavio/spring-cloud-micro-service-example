@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 /**
  * 認證服務客戶端
  */
-@FeignClient(name = "auth-service", path = "/api/auth")
+@FeignClient(name = "auth-service", path = "/auth")
 public interface AuthServiceClient {
     
     /**
@@ -17,8 +17,8 @@ public interface AuthServiceClient {
     Long getUserId(@RequestHeader("Authorization") String authHeader);
     
     /**
-     * 驗證 token
+     * 驗證 token（auth-service 實作為 POST）
      */
-    @GetMapping("/validate")
+    @org.springframework.web.bind.annotation.PostMapping("/validate")
     void validateToken(@RequestHeader("Authorization") String authHeader);
 }

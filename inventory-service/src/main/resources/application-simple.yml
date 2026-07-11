@@ -7,7 +7,7 @@ spring:
       enabled: false
   
   datasource:
-    jdbc-url: jdbc:postgresql://localhost:5432/inventory_db
+    jdbc-url: jdbc:postgresql://postgres:5432/inventory_db
     username: inventory_user
     password: inventory_pass
     driver-class-name: org.postgresql.Driver
@@ -22,7 +22,7 @@ spring:
         
   data:
     redis:
-      host: localhost
+      host: redis
       port: 6379
       database: 0
 

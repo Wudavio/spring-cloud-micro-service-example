@@ -1,6 +1,7 @@
 services:
   # 基礎設施服務
   postgres:
+    restart: "no"
     image: postgres:15-alpine
     container_name: postgres-db
     environment:
@@ -19,6 +20,7 @@ services:
       retries: 5
 
   redis:
+    restart: "no"
     image: redis:7-alpine
     container_name: redis-cache
     ports:
@@ -31,10 +33,11 @@ services:
       timeout: 5s
       retries: 5
 
-  # LGTM 堆疊 - 可觀測性基礎設施
+  # LGTM 堆疊－可觀測性基礎設施
   
-  # OpenTelemetry Collector - 遙測數據收集和路由
+  # OpenTelemetry Collector－遙測資料收集與路由
   otel-collector:
+    restart: "no"
     image: otel/opentelemetry-collector-contrib:latest
     container_name: otel-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
@@ -43,7 +46,7 @@ services:
     ports:
       - "4327:4327"   # OTLP gRPC receiver
       - "4328:4328"   # OTLP HTTP receiver
-      - "8889:8888"   # Prometheus metrics (Collector 自監控)
+      - "8889:8888"   # Prometheus metrics（Collector 自我監控）
       - "13133:13133" # Health check
       - "1777:1777"   # pprof 效能分析
       - "55679:55679" # zPages 內部狀態
@@ -55,14 +58,14 @@ services:
       - mimir
       - tempo
       - loki
-    # 啟用健康檢查
+    # 官方映像為 distroless，使用程式本身驗證容器可執行狀態
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:13133/health"]
+      test: ["CMD", "/otelcol-contrib", "--version"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 30s
-    # 資源限制 - 防止 Collector 消耗過多資源
+    # 資源限制－避免 Collector 消耗過多資源
     deploy:
       resources:
         limits:
@@ -72,8 +75,9 @@ services:
           memory: 256M
           cpus: '0.5'
 
-  # Mimir - 指標存儲 (Prometheus 相容)
+  # Mimir－指標儲存（Prometheus 相容）
   mimir:
+    restart: "no"
     image: grafana/mimir:latest
     container_name: mimir
     command: ["-config.file=/etc/mimir.yaml"]
@@ -84,14 +88,15 @@ services:
       - "9009:9009"   # HTTP API
       - "9095:9095"   # gRPC API
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9009/ready"]
+      test: ["CMD", "/bin/mimir", "-version"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 90s
 
-  # Tempo - 分散式追蹤存儲
+  # Tempo－分散式追蹤儲存
   tempo:
+    restart: "no"
     image: grafana/tempo:latest
     container_name: tempo
     user: "0"
@@ -104,14 +109,15 @@ services:
       - "4317:4317"   # OTLP gRPC receiver
       - "4318:4318"   # OTLP HTTP receiver
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3200/ready"]
+      test: ["CMD", "/tempo", "-version"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 60s
 
-  # Loki - 日誌聚合系統
+  # Loki－日誌聚合系統
   loki:
+    restart: "no"
     image: grafana/loki:latest
     container_name: loki
     user: "0"
@@ -122,14 +128,15 @@ services:
     ports:
       - "3100:3100"   # HTTP API
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      test: ["CMD", "/usr/bin/loki", "-version"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 60s
 
-  # Grafana - 視覺化和儀表板
+  # Grafana－視覺化與儀表板
   grafana:
+    restart: "no"
     image: grafana/grafana:latest
     container_name: grafana
     volumes:
@@ -156,6 +163,7 @@ services:
 
   # 微服務
   eureka-server:
+    restart: "no"
     build:
       context: ./eureka-server
       dockerfile: Dockerfile
@@ -163,22 +171,22 @@ services:
     ports:
       - "8761:8761"
     environment:
-      # OpenTelemetry 非阻塞導出配置
+      # OpenTelemetry 非阻塞匯出設定
       - OTEL_SERVICE_NAME=eureka-server
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4327
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_EXPORTER_OTLP_TIMEOUT=30000
       - OTEL_EXPORTER_OTLP_COMPRESSION=gzip
       - OTEL_RESOURCE_ATTRIBUTES=service.name=eureka-server,service.version=1.0.0,deployment.environment=production,service.namespace=microservices
-      # 批次處理器配置 - 實作背壓控制
+      # 批次處理器設定－實作背壓控制
       - OTEL_BSP_SCHEDULE_DELAY=500
       - OTEL_BSP_MAX_QUEUE_SIZE=2048
       - OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512
       - OTEL_BSP_EXPORT_TIMEOUT=30000
-      # 取樣配置
+      # 取樣設定
       - OTEL_TRACES_SAMPLER=traceidratio
       - OTEL_TRACES_SAMPLER_ARG=1.0
-      # 重試和熔斷器配置
+      # 重試與熔斷器設定
       - OTEL_EXPORTER_OTLP_RETRY_ENABLED=true
       - OTEL_EXPORTER_OTLP_RETRY_INITIAL_BACKOFF=1s
       - OTEL_EXPORTER_OTLP_RETRY_MAX_BACKOFF=5s
@@ -194,6 +202,7 @@ services:
       start_period: 60s
 
   config-server:
+    restart: "no"
     build:
       context: ./config-server
       dockerfile: Dockerfile
@@ -202,22 +211,22 @@ services:
       - "8888:8888"
     environment:
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      # OpenTelemetry 非阻塞導出配置
+      # OpenTelemetry 非阻塞匯出設定
       - OTEL_SERVICE_NAME=config-server
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4327
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_EXPORTER_OTLP_TIMEOUT=30000
       - OTEL_EXPORTER_OTLP_COMPRESSION=gzip
       - OTEL_RESOURCE_ATTRIBUTES=service.name=config-server,service.version=1.0.0,deployment.environment=production,service.namespace=microservices
-      # 批次處理器配置 - 實作背壓控制
+      # 批次處理器設定－實作背壓控制
       - OTEL_BSP_SCHEDULE_DELAY=500
       - OTEL_BSP_MAX_QUEUE_SIZE=2048
       - OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512
       - OTEL_BSP_EXPORT_TIMEOUT=30000
-      # 取樣配置
+      # 取樣設定
       - OTEL_TRACES_SAMPLER=traceidratio
       - OTEL_TRACES_SAMPLER_ARG=1.0
-      # 重試和熔斷器配置
+      # 重試與熔斷器設定
       - OTEL_EXPORTER_OTLP_RETRY_ENABLED=true
       - OTEL_EXPORTER_OTLP_RETRY_INITIAL_BACKOFF=1s
       - OTEL_EXPORTER_OTLP_RETRY_MAX_BACKOFF=5s
@@ -235,6 +244,7 @@ services:
       start_period: 60s
 
   api-gateway:
+    restart: "no"
     build:
       context: ./api-gateway
       dockerfile: Dockerfile
@@ -244,22 +254,22 @@ services:
     environment:
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      # OpenTelemetry 非阻塞導出配置
+      # OpenTelemetry 非阻塞匯出設定
       - OTEL_SERVICE_NAME=api-gateway
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4327
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_EXPORTER_OTLP_TIMEOUT=30000
       - OTEL_EXPORTER_OTLP_COMPRESSION=gzip
       - OTEL_RESOURCE_ATTRIBUTES=service.name=api-gateway,service.version=1.0.0,deployment.environment=production,service.namespace=microservices
-      # 批次處理器配置 - 實作背壓控制
+      # 批次處理器設定－實作背壓控制
       - OTEL_BSP_SCHEDULE_DELAY=500
       - OTEL_BSP_MAX_QUEUE_SIZE=2048
       - OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512
       - OTEL_BSP_EXPORT_TIMEOUT=30000
-      # 取樣配置
+      # 取樣設定
       - OTEL_TRACES_SAMPLER=traceidratio
       - OTEL_TRACES_SAMPLER_ARG=1.0
-      # 重試和熔斷器配置
+      # 重試與熔斷器設定
       - OTEL_EXPORTER_OTLP_RETRY_ENABLED=true
       - OTEL_EXPORTER_OTLP_RETRY_INITIAL_BACKOFF=1s
       - OTEL_EXPORTER_OTLP_RETRY_MAX_BACKOFF=5s
@@ -279,6 +289,7 @@ services:
       start_period: 90s
 
   product-service:
+    restart: "no"
     build:
       context: ./product-service
       dockerfile: Dockerfile
@@ -291,22 +302,23 @@ services:
       - SPRING_DATASOURCE_PASSWORD=product_pass
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      # OpenTelemetry 非阻塞導出配置
+      - eureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/
+      # OpenTelemetry 非阻塞匯出設定
       - OTEL_SERVICE_NAME=product-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4327
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_EXPORTER_OTLP_TIMEOUT=30000
       - OTEL_EXPORTER_OTLP_COMPRESSION=gzip
       - OTEL_RESOURCE_ATTRIBUTES=service.name=product-service,service.version=1.0.0,deployment.environment=production,service.namespace=microservices
-      # 批次處理器配置 - 實作背壓控制
+      # 批次處理器設定－實作背壓控制
       - OTEL_BSP_SCHEDULE_DELAY=500
       - OTEL_BSP_MAX_QUEUE_SIZE=2048
       - OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512
       - OTEL_BSP_EXPORT_TIMEOUT=30000
-      # 取樣配置
+      # 取樣設定
       - OTEL_TRACES_SAMPLER=traceidratio
       - OTEL_TRACES_SAMPLER_ARG=1.0
-      # 重試和熔斷器配置
+      # 重試與熔斷器設定
       - OTEL_EXPORTER_OTLP_RETRY_ENABLED=true
       - OTEL_EXPORTER_OTLP_RETRY_INITIAL_BACKOFF=1s
       - OTEL_EXPORTER_OTLP_RETRY_MAX_BACKOFF=5s
@@ -328,6 +340,7 @@ services:
       start_period: 90s
 
   inventory-service:
+    restart: "no"
     build:
       context: ./inventory-service
       dockerfile: Dockerfile
@@ -338,26 +351,30 @@ services:
       - SPRING_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/inventory_db
       - SPRING_DATASOURCE_USERNAME=inventory_user
       - SPRING_DATASOURCE_PASSWORD=inventory_pass
+      - DB_USERNAME=inventory_user
+      - DB_PASSWORD=inventory_pass
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - SPRING_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_HOST=redis
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      # OpenTelemetry 非阻塞導出配置
+      # OpenTelemetry 非阻塞匯出設定
       - OTEL_SERVICE_NAME=inventory-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4327
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_EXPORTER_OTLP_TIMEOUT=30000
       - OTEL_EXPORTER_OTLP_COMPRESSION=gzip
       - OTEL_RESOURCE_ATTRIBUTES=service.name=inventory-service,service.version=1.0.0,deployment.environment=production,service.namespace=microservices
-      # 批次處理器配置 - 實作背壓控制
+      # 批次處理器設定－實作背壓控制
       - OTEL_BSP_SCHEDULE_DELAY=500
       - OTEL_BSP_MAX_QUEUE_SIZE=2048
       - OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512
       - OTEL_BSP_EXPORT_TIMEOUT=30000
-      # 取樣配置
+      # 取樣設定
       - OTEL_TRACES_SAMPLER=traceidratio
       - OTEL_TRACES_SAMPLER_ARG=1.0
-      # 重試和熔斷器配置
+      # 重試與熔斷器設定
       - OTEL_EXPORTER_OTLP_RETRY_ENABLED=true
       - OTEL_EXPORTER_OTLP_RETRY_INITIAL_BACKOFF=1s
       - OTEL_EXPORTER_OTLP_RETRY_MAX_BACKOFF=5s
@@ -381,6 +398,7 @@ services:
       start_period: 90s
 
   auth-service:
+    restart: "no"
     build:
       context: ./auth-service
       dockerfile: Dockerfile
@@ -395,22 +413,22 @@ services:
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - JWT_SECRET=myVerySecretKeyForJWTTokenGeneration123456789
       - JWT_EXPIRATION=86400000
-      # OpenTelemetry 非阻塞導出配置
+      # OpenTelemetry 非阻塞匯出設定
       - OTEL_SERVICE_NAME=auth-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4327
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_EXPORTER_OTLP_TIMEOUT=30000
       - OTEL_EXPORTER_OTLP_COMPRESSION=gzip
       - OTEL_RESOURCE_ATTRIBUTES=service.name=auth-service,service.version=1.0.0,deployment.environment=production,service.namespace=microservices
-      # 批次處理器配置 - 實作背壓控制
+      # 批次處理器設定－實作背壓控制
       - OTEL_BSP_SCHEDULE_DELAY=500
       - OTEL_BSP_MAX_QUEUE_SIZE=2048
       - OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512
       - OTEL_BSP_EXPORT_TIMEOUT=30000
-      # 取樣配置
+      # 取樣設定
       - OTEL_TRACES_SAMPLER=traceidratio
       - OTEL_TRACES_SAMPLER_ARG=1.0
-      # 重試和熔斷器配置
+      # 重試與熔斷器設定
       - OTEL_EXPORTER_OTLP_RETRY_ENABLED=true
       - OTEL_EXPORTER_OTLP_RETRY_INITIAL_BACKOFF=1s
       - OTEL_EXPORTER_OTLP_RETRY_MAX_BACKOFF=5s
@@ -432,6 +450,7 @@ services:
       start_period: 60s
 
   order-service:
+    restart: "no"
     build:
       context: ./order-service
       dockerfile: Dockerfile
@@ -442,26 +461,29 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/order_db
       - SPRING_DATASOURCE_USERNAME=order_user
       - SPRING_DATASOURCE_PASSWORD=order_pass
+      - DB_USERNAME=order_user
+      - DB_PASSWORD=order_pass
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - SPRING_DATA_REDIS_HOST=redis
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      # OpenTelemetry 非阻塞導出配置
+      # OpenTelemetry 非阻塞匯出設定
       - OTEL_SERVICE_NAME=order-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4327
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_EXPORTER_OTLP_TIMEOUT=30000
       - OTEL_EXPORTER_OTLP_COMPRESSION=gzip
       - OTEL_RESOURCE_ATTRIBUTES=service.name=order-service,service.version=1.0.0,deployment.environment=production,service.namespace=microservices
-      # 批次處理器配置 - 實作背壓控制
+      # 批次處理器設定－實作背壓控制
       - OTEL_BSP_SCHEDULE_DELAY=500
       - OTEL_BSP_MAX_QUEUE_SIZE=2048
       - OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512
       - OTEL_BSP_EXPORT_TIMEOUT=30000
-      # 取樣配置
+      # 取樣設定
       - OTEL_TRACES_SAMPLER=traceidratio
       - OTEL_TRACES_SAMPLER_ARG=1.0
-      # 重試和熔斷器配置
+      # 重試與熔斷器設定
       - OTEL_EXPORTER_OTLP_RETRY_ENABLED=true
       - OTEL_EXPORTER_OTLP_RETRY_INITIAL_BACKOFF=1s
       - OTEL_EXPORTER_OTLP_RETRY_MAX_BACKOFF=5s
@@ -493,7 +515,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  # LGTM 堆疊數據卷
+  # LGTM 堆疊資料卷
   mimir_data:
   tempo_data:
   loki_data:

@@ -17,7 +17,8 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @Configuration
 public class RedisConfig {
 
-    @Value("${spring.redis.host:redis}")
+    // Docker Compose 服務名預設為 redis；本機可用 SPRING_REDIS_HOST / REDIS_HOST 覆寫
+    @Value("${spring.redis.host:${spring.data.redis.host:${REDIS_HOST:redis}}}")
     private String redisHost;
 
     @Value("${spring.redis.port:6379}")
@@ -63,8 +64,9 @@ public class RedisConfig {
         template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
         template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
         
-        // 啟用事務支援（分散式鎖需要）
-        template.setEnableTransactionSupport(true);
+        // 不可對鎖用 template 開啟 transaction support：
+        // enableTransactionSupport=true 會讓 setIfAbsent 在未 exec 前回傳 null，鎖永遠取不到
+        template.setEnableTransactionSupport(false);
         
         template.afterPropertiesSet();
         return template;

@@ -300,6 +300,19 @@ public class InventoryController {
             throw e;
         }
     }
+
+    /**
+     * 建立產品庫存（若不存在）— 管理用途
+     */
+    @Operation(summary = "建立庫存", description = "為產品建立初始庫存記錄")
+    @PostMapping("/{productId}")
+    public ResponseEntity<InventoryDTO> createInventory(
+            @Parameter(description = "產品 ID") @PathVariable Long productId,
+            @Parameter(description = "初始庫存") @Valid @RequestBody UpdateStockRequest request) {
+        logger.info("建立庫存: productId={}, newStock={}", productId, request.getNewStock());
+        Inventory created = inventoryService.createInventory(productId, request.getNewStock(), 5);
+        return ResponseEntity.status(HttpStatus.CREATED).body(InventoryMapper.toDTO(created));
+    }
     
     /**
      * 查詢客戶的所有預留記錄

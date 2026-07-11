@@ -3,7 +3,6 @@ package com.microservices.order.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.NotNull;
 
 /**
  * 更新購物車項目請求
@@ -11,8 +10,7 @@ import jakarta.validation.constraints.NotNull;
 @Schema(description = "更新購物車項目的請求物件")
 public class UpdateCartItemRequest {
     
-    @Schema(description = "用戶ID", example = "123")
-    @NotNull(message = "用戶ID不能為空")
+    @Schema(description = "用戶ID（由服務端從 JWT 注入，請求體可省略）", example = "123")
     private Long userId;
     
     @Schema(description = "新的購買數量", example = "3", minimum = "1")

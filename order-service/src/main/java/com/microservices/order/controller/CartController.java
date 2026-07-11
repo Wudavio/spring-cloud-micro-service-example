@@ -78,10 +78,18 @@ public class CartController {
     @PutMapping("/items/{itemId}")
     public ResponseEntity<CartDTO> updateCartItem(
             @Parameter(description = "購物車項目ID", required = true) @PathVariable Long itemId,
-            @Valid @RequestBody UpdateCartItemRequest request) {
+            @Valid @RequestBody UpdateCartItemRequest request,
+            HttpServletRequest httpRequest) {
+
+        // 身份一律來自 JWT，禁止客戶端偽造 userId
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        request.setUserId(userId);
         
-        logger.info("更新購物車項目請求: itemId={}, customerId={}, quantity={}", 
-                   itemId, request.getUserId(), request.getQuantity());
+        logger.info("更新購物車項目請求: itemId={}, userId={}, quantity={}",
+                   itemId, userId, request.getQuantity());
         
         CartDTO cart = cartService.updateCartItem(itemId, request);
         

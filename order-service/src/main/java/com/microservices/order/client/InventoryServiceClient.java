@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * 庫存服務客戶端
  */
-@FeignClient(name = "inventory-service", path = "/api/inventory")
+@FeignClient(name = "inventory-service", path = "/inventory")
 public interface InventoryServiceClient {
     
     /**
@@ -78,14 +78,15 @@ public interface InventoryServiceClient {
     class ReleaseInventoryRequest {
         private Long userId;
         private Integer quantity;
-        private String type;
+        /** 對應 inventory-service ReleaseInventoryRequest.releaseType */
+        private String releaseType;
         
         public ReleaseInventoryRequest() {}
         
-        public ReleaseInventoryRequest(Long userId, Integer quantity, String type) {
+        public ReleaseInventoryRequest(Long userId, Integer quantity, String releaseType) {
             this.userId = userId;
             this.quantity = quantity;
-            this.type = type;
+            this.releaseType = releaseType;
         }
         
         // Getters and Setters
@@ -105,12 +106,12 @@ public interface InventoryServiceClient {
             this.quantity = quantity;
         }
         
-        public String getType() {
-            return type;
+        public String getReleaseType() {
+            return releaseType;
         }
         
-        public void setType(String type) {
-            this.type = type;
+        public void setReleaseType(String releaseType) {
+            this.releaseType = releaseType;
         }
     }
     
@@ -155,6 +156,7 @@ public interface InventoryServiceClient {
         private String customerId;
         private Integer quantity;
         private String type;
+        @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private java.time.LocalDateTime expiresAt;
         
         public ReservationDTO() {}

@@ -2,11 +2,11 @@ spring:
   application:
     name: inventory-service
   config:
-    import: "optional:configserver:http://localhost:8888"
+    import: "optional:configserver:http://config-server:8888"
   cloud:
     config:
       enabled: false  # 暫時禁用 Config Server
-      uri: http://localhost:8888
+      uri: http://config-server:8888
       fail-fast: false
       retry:
         initial-interval: 1000
@@ -14,11 +14,11 @@ spring:
         max-interval: 2000
         multiplier: 1.1
   
-  # 資料庫配置
+  # 資料庫配置（Docker: postgres 主機名；本機可覆寫 SPRING_DATASOURCE_JDBC_URL）
   datasource:
-    jdbc-url: jdbc:postgresql://localhost:5432/inventory_db
-    username: ${DB_USERNAME:inventory_user}
-    password: ${DB_PASSWORD:inventory_pass}
+    jdbc-url: ${SPRING_DATASOURCE_JDBC_URL:jdbc:postgresql://postgres:5432/inventory_db}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:inventory_user}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:inventory_pass}}
     driver-class-name: org.postgresql.Driver
       
   # JPA 配置
@@ -71,7 +71,7 @@ logging:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://eureka-server:8761/eureka/
     fetch-registry: true
     register-with-eureka: true
   instance:

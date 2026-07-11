@@ -53,6 +53,10 @@ management:
     health:
       show-details: always
 
+security:
+  write-guard:
+    enabled: false
+
 # 測試環境的鎖配置
 inventory:
   lock:

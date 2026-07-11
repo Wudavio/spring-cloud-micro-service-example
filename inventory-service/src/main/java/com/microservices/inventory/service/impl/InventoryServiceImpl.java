@@ -89,8 +89,9 @@ public class InventoryServiceImpl implements InventoryService {
             throw new IllegalArgumentException("庫存數量不能為負數");
         }
 
+        // 若尚無庫存紀錄則建立（管理端 PUT stock 可一併初始化）
         Inventory inventory = inventoryRepository.findByProductId(productId)
-                .orElseThrow(() -> new IllegalArgumentException("找不到產品庫存記錄。產品ID: " + productId));
+                .orElseGet(() -> new Inventory(productId, 0, 5));
 
         inventory.setAvailableStock(newStock);
         return inventoryRepository.save(inventory);
@@ -149,37 +150,39 @@ public class InventoryServiceImpl implements InventoryService {
         Inventory inventory = inventoryRepository.findByProductIdWithLock(productId)
                 .orElseThrow(() -> new IllegalArgumentException("找不到產品庫存記錄。產品ID: " + productId));
 
-        // 檢查庫存是否足夠
+        // 增量預留語意：與 order-service 購物車「只預留差額」一致。
+        // 若已有臨時預留，合併為單一記錄（舊數量 + 本次 quantity），避免 replace 導致漏鎖庫存。
+        List<InventoryReservation> existingReservations = reservationRepository
+                .findByProductIdAndUserIdAndType(productId, userId, ReservationType.TEMPORARY);
+
+        int existingQuantity = existingReservations.stream()
+                .mapToInt(InventoryReservation::getQuantity)
+                .sum();
+        int totalQuantity = existingQuantity + quantity;
+
+        // 僅需為「本次新增」檢查可用庫存（既有預留已從 available 扣除）
         if (!inventory.hasAvailableStock(quantity)) {
             throw new InsufficientStockException(
-                String.format("庫存不足。產品ID: %d, 需要數量: %d, 可用庫存: %d", 
+                String.format("庫存不足。產品ID: %d, 需要數量: %d, 可用庫存: %d",
                     productId, quantity, inventory.getAvailableStock()));
         }
 
-        // 檢查是否已存在該客戶的臨時預留
-        List<InventoryReservation> existingReservations = reservationRepository
-                .findByProductIdAndUserIdAndType(productId, userId, ReservationType.TEMPORARY);
-        
-        if (!existingReservations.isEmpty()) {
-            // 如果已存在，先釋放舊的預留
-            for (InventoryReservation existing : existingReservations) {
-                inventory.setAvailableStock(inventory.getAvailableStock() + existing.getQuantity());
-                inventory.setTemporaryReserved(inventory.getTemporaryReserved() - existing.getQuantity());
-                reservationRepository.delete(existing);
-            }
+        for (InventoryReservation existing : existingReservations) {
+            reservationRepository.delete(existing);
         }
 
-        // 執行預留操作
+        // 只扣本次增量；temporaryReserved 同步加上增量
         inventory.setAvailableStock(inventory.getAvailableStock() - quantity);
         inventory.setTemporaryReserved(inventory.getTemporaryReserved() + quantity);
         inventoryRepository.save(inventory);
 
-        // 創建預留記錄
-        InventoryReservation reservation = new InventoryReservation(productId, userId, quantity, ReservationType.TEMPORARY, expiresAt);
+        // 合併後的預留總量寫成單一記錄
+        InventoryReservation reservation = new InventoryReservation(
+                productId, userId, totalQuantity, ReservationType.TEMPORARY, expiresAt);
         reservation = reservationRepository.save(reservation);
 
-        logger.info("臨時預留成功: productId={}, userId={}, quantity={}, reservationId={}", 
-                   productId, userId, quantity, reservation.getId());
+        logger.info("臨時預留成功: productId={}, userId={}, quantity={}, totalReserved={}, reservationId={}",
+                   productId, userId, quantity, totalQuantity, reservation.getId());
         
         return reservation;
     }
@@ -313,32 +316,28 @@ public class InventoryServiceImpl implements InventoryService {
                 .sum();
 
         int releaseQuantity = Math.min(quantity, totalTemporaryQuantity);
+        int remainingQuantity = totalTemporaryQuantity - releaseQuantity;
 
         // 刪除預留記錄
         for (InventoryReservation temp : temporaryReservations) {
             reservationRepository.delete(temp);
         }
 
-        // 更新庫存數量
+        // 只把「實際釋放」的數量還回 available；remaining 仍算在 temporaryReserved
         inventory.setAvailableStock(inventory.getAvailableStock() + releaseQuantity);
         inventory.setTemporaryReserved(inventory.getTemporaryReserved() - releaseQuantity);
         inventoryRepository.save(inventory);
 
-        // 如果還有剩餘需要預留的數量，重新創建預留記錄
-        if (totalTemporaryQuantity > releaseQuantity) {
-            int remainingQuantity = totalTemporaryQuantity - releaseQuantity;
-            LocalDateTime expiresAt = LocalDateTime.now().plusHours(24); // 預設24小時過期
+        // 剩餘預留只重建記錄，不可再改 available/temporaryReserved（避免雙重加減）
+        if (remainingQuantity > 0) {
+            LocalDateTime expiresAt = LocalDateTime.now().plusHours(24);
             InventoryReservation newReservation = new InventoryReservation(
                     productId, userId, remainingQuantity, ReservationType.TEMPORARY, expiresAt);
             reservationRepository.save(newReservation);
-            
-            inventory.setAvailableStock(inventory.getAvailableStock() - remainingQuantity);
-            inventory.setTemporaryReserved(inventory.getTemporaryReserved() + remainingQuantity);
-            inventoryRepository.save(inventory);
         }
 
-        logger.info("臨時預留釋放成功: productId={}, userId={}, releaseQuantity={}", 
-                   productId, userId, releaseQuantity);
+        logger.info("臨時預留釋放成功: productId={}, userId={}, releaseQuantity={}, remaining={}",
+                   productId, userId, releaseQuantity, remainingQuantity);
     }
 
     @Override
@@ -389,31 +388,28 @@ public class InventoryServiceImpl implements InventoryService {
                 .sum();
 
         int releaseQuantity = Math.min(quantity, totalConfirmedQuantity);
+        int remainingQuantity = totalConfirmedQuantity - releaseQuantity;
 
         // 刪除預留記錄
         for (InventoryReservation confirmed : confirmedReservations) {
             reservationRepository.delete(confirmed);
         }
 
-        // 更新庫存數量
+        // 只釋放請求數量；剩餘 confirmed 計數保持正確
         inventory.setAvailableStock(inventory.getAvailableStock() + releaseQuantity);
         inventory.setConfirmedReserved(inventory.getConfirmedReserved() - releaseQuantity);
         inventoryRepository.save(inventory);
 
-        // 如果還有剩餘的確認預留數量，重新創建預留記錄
-        if (totalConfirmedQuantity > releaseQuantity) {
-            int remainingQuantity = totalConfirmedQuantity - releaseQuantity;
+        // 剩餘確認預留只重建記錄，不可再累加 confirmedReserved
+        if (remainingQuantity > 0) {
             LocalDateTime neverExpires = LocalDateTime.now().plusYears(10);
             InventoryReservation newReservation = new InventoryReservation(
                     productId, userId, remainingQuantity, ReservationType.CONFIRMED, neverExpires);
             reservationRepository.save(newReservation);
-            
-            inventory.setConfirmedReserved(inventory.getConfirmedReserved() + remainingQuantity);
-            inventoryRepository.save(inventory);
         }
 
-        logger.info("確認預留釋放成功: productId={}, userId={}, releaseQuantity={}", 
-                   productId, userId, releaseQuantity);
+        logger.info("確認預留釋放成功: productId={}, userId={}, releaseQuantity={}, remaining={}",
+                   productId, userId, releaseQuantity, remainingQuantity);
     }
 
     @Override
@@ -556,7 +552,8 @@ public class InventoryServiceImpl implements InventoryService {
             // 在實際環境中，這裡會調用產品服務的 API
             // 例如: GET /api/products/{productId}/exists
             // 為了測試目的，這裡簡化處理
-            String url = "http://product-service/api/products/" + productId + "/exists";
+            // 服務間透過 Eureka 直連，不使用 API Gateway 對外的 /api 前綴
+            String url = "http://product-service/products/" + productId + "/exists";
             Boolean exists = restTemplate.getForObject(url, Boolean.class);
             return exists != null && exists;
         } catch (Exception e) {

@@ -35,4 +35,4 @@ ENV OTEL_INSTRUMENTATION_SPRING_BOOT_ACTUATOR_AUTOCONFIGURE_ENABLED=true
 EXPOSE 8081
 
 # 使用 OpenTelemetry Java Agent 啟動應用程式
-ENTRYPOINT ["java", "-javaagent:/app/opentelemetry-javaagent.jar", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-javaagent:/app/opentelemetry-javaagent.jar", "-Deureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/", "-jar", "app.jar"]

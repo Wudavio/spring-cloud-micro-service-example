@@ -174,7 +174,7 @@ class CartInventorySyncPropertyTest {
             InventoryServiceClient.ReleaseInventoryRequest releaseRequest = releaseCaptor.getValue();
             assertThat(releaseRequest.getQuantity()).isEqualTo(Math.abs(difference));
             assertThat(releaseRequest.getUserId()).isEqualTo(customerId);
-            assertThat(releaseRequest.getType()).isEqualTo("TEMPORARY");
+            assertThat(releaseRequest.getReleaseType()).isEqualTo("TEMPORARY");
         }
         // difference == 0 時不需要調整庫存
         
@@ -227,7 +227,7 @@ class CartInventorySyncPropertyTest {
         InventoryServiceClient.ReleaseInventoryRequest releaseRequest = captor.getValue();
         assertThat(releaseRequest.getQuantity()).isEqualTo(quantity);
         assertThat(releaseRequest.getUserId()).isEqualTo(customerId);
-        assertThat(releaseRequest.getType()).isEqualTo("TEMPORARY");
+        assertThat(releaseRequest.getReleaseType()).isEqualTo("TEMPORARY");
         
         // 驗證購物車為空
         assertThat(result.getItems()).isEmpty();

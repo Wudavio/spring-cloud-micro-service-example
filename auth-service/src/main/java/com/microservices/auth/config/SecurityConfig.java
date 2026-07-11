@@ -4,6 +4,7 @@ import com.microservices.auth.service.impl.CustomUserDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -14,6 +15,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
  * Spring Security 配置
@@ -25,6 +27,9 @@ public class SecurityConfig {
     
     @Autowired
     private CustomUserDetailsService userDetailsService;
+
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
     
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -49,18 +54,23 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                // 允許認證相關的端點（注意：Gateway 會 strip 掉 /api 前綴）
-                .requestMatchers("/auth/**", "/users/**").permitAll()
-                .requestMatchers("/api/auth/**", "/api/users/**").permitAll() // 保留原有配置以防直接訪問
-                // 允許 Swagger UI 和 API 文檔
+                // 公開認證端點
+                .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                // 允許 Spring 將驗證失敗轉交錯誤處理器，避免錯誤地回傳 403
+                .requestMatchers("/error").permitAll()
+                // token 驗證供內部服務呼叫（需持有有效 Bearer，由 controller 自行檢查）
+                .requestMatchers("/auth/validate", "/auth/user-id").permitAll()
+                .requestMatchers("/api/auth/validate", "/api/auth/user-id").permitAll()
+                // Swagger / Actuator
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                // 允許 Actuator 健康檢查
                 .requestMatchers("/actuator/**").permitAll()
-                // 其他請求需要認證
+                // 用戶管理：需登入（自身或 ADMIN 由 controller 再細分）
+                .requestMatchers("/users/**", "/api/users/**").authenticated()
                 .anyRequest().authenticated()
-            );
-        
-        http.authenticationProvider(authenticationProvider());
+            )
+            .authenticationProvider(authenticationProvider())
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
     }

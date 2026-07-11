@@ -16,7 +16,7 @@ spring:
   
   # 資料庫配置
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/auth_db}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/auth_db}
     username: ${SPRING_DATASOURCE_USERNAME:auth_user}
     password: ${SPRING_DATASOURCE_PASSWORD:auth_pass}
     driver-class-name: org.postgresql.Driver
@@ -39,7 +39,7 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://localhost:8761/eureka/}
+      defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server:8761/eureka/}
     fetch-registry: true
     register-with-eureka: true
   instance:

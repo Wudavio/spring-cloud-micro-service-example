@@ -25,8 +25,12 @@ public class DistributedLock {
     private static final long DEFAULT_LOCK_TIMEOUT_SECONDS = 30L;
     private static final long DEFAULT_ACQUIRE_TIMEOUT_SECONDS = 10L;
     
+    /**
+     * 使用字串序列化的 template，避免 JSON 序列化與 transaction 佇列問題導致鎖失效
+     */
     @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
+    @org.springframework.beans.factory.annotation.Qualifier("lockRedisTemplate")
+    private RedisTemplate<String, String> redisTemplate;
     
     // Lua 腳本用於原子性釋放鎖
     private static final String UNLOCK_SCRIPT = 

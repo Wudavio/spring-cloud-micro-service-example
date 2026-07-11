@@ -52,15 +52,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             } catch (FeignException e) {
                 logger.error("Token 驗證失敗: {}", e.getMessage());
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("{\"error\":\"Invalid or expired token\"}");
                 response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"Invalid or expired token\"}");
+                return;
+            } catch (Exception e) {
+                logger.error("Token 驗證異常: {}", e.getMessage());
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"Authentication failed\"}");
                 return;
             }
         } else {
-            logger.debug("缺少 Authorization header");
+            logger.debug("缺少 Authorization header: path={}", requestPath);
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("{\"error\":\"Missing Authorization header\"}");
             response.setContentType("application/json");
+            response.getWriter().write("{\"error\":\"Missing Authorization header\"}");
             return;
         }
         
@@ -73,7 +79,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private boolean shouldSkipAuthentication(String requestPath) {
         return requestPath.startsWith("/actuator/") ||
                requestPath.startsWith("/swagger-ui/") ||
-               requestPath.startsWith("/v3/api-docs/") ||
-               requestPath.equals("/swagger-ui.html");
+               requestPath.startsWith("/v3/api-docs") ||
+               requestPath.equals("/swagger-ui.html") ||
+               requestPath.startsWith("/api/logging/");
     }
 }

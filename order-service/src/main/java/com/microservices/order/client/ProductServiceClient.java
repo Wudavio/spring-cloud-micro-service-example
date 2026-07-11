@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 /**
  * 產品服務客戶端
  */
-@FeignClient(name = "product-service", path = "/api/products")
+@FeignClient(name = "product-service", path = "/products")
 public interface ProductServiceClient {
     
     /**

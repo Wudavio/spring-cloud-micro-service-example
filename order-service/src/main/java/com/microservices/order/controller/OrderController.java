@@ -53,6 +53,9 @@ public class OrderController {
     public ResponseEntity<OrderDTO> placeOrder(@RequestBody PlaceOrderRequest request,
                                              HttpServletRequest httpRequest) {
         Long userId = (Long) httpRequest.getAttribute("userId");
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         request.setUserId(userId);
         
         logger.info("下單請求: userId={}", userId);
@@ -78,10 +81,17 @@ public class OrderController {
     })
     @GetMapping("/{orderId}")
     public ResponseEntity<OrderDTO> getOrder(
-            @Parameter(description = "訂單ID", required = true) @PathVariable Long orderId) {
-        logger.info("獲取訂單請求: orderId={}", orderId);
+            @Parameter(description = "訂單ID", required = true) @PathVariable Long orderId,
+            HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        logger.info("獲取訂單請求: orderId={}, userId={}", orderId, userId);
         
         OrderDTO order = orderService.getOrder(orderId);
+        if (userId == null || !userId.equals(order.getUserId())) {
+            logger.warn("拒絕越權讀取訂單: orderId={}, requester={}, owner={}",
+                    orderId, userId, order.getUserId());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         
         logger.info("成功獲取訂單: orderId={}, orderNumber={}, status={}", 
                    orderId, order.getOrderNumber(), order.getStatus());
@@ -102,10 +112,17 @@ public class OrderController {
     })
     @GetMapping("/number/{orderNumber}")
     public ResponseEntity<OrderDTO> getOrderByNumber(
-            @Parameter(description = "訂單號", required = true) @PathVariable String orderNumber) {
-        logger.info("根據訂單號獲取訂單請求: orderNumber={}", orderNumber);
+            @Parameter(description = "訂單號", required = true) @PathVariable String orderNumber,
+            HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        logger.info("根據訂單號獲取訂單請求: orderNumber={}, userId={}", orderNumber, userId);
         
         OrderDTO order = orderService.getOrderByNumber(orderNumber);
+        if (userId == null || !userId.equals(order.getUserId())) {
+            logger.warn("拒絕越權讀取訂單: orderNumber={}, requester={}, owner={}",
+                    orderNumber, userId, order.getUserId());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         
         logger.info("成功根據訂單號獲取訂單: orderNumber={}, customerId={}, status={}", 
                    orderNumber, order.getUserId(), order.getStatus());
@@ -154,8 +171,17 @@ public class OrderController {
     })
     @PutMapping("/{orderId}/cancel")
     public ResponseEntity<OrderDTO> cancelOrder(
-            @Parameter(description = "訂單ID", required = true) @PathVariable Long orderId) {
-        logger.info("取消訂單請求: orderId={}", orderId);
+            @Parameter(description = "訂單ID", required = true) @PathVariable Long orderId,
+            HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        logger.info("取消訂單請求: orderId={}, userId={}", orderId, userId);
+
+        OrderDTO existing = orderService.getOrder(orderId);
+        if (userId == null || !userId.equals(existing.getUserId())) {
+            logger.warn("拒絕越權取消訂單: orderId={}, requester={}, owner={}",
+                    orderId, userId, existing.getUserId());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         
         OrderDTO order = orderService.cancelOrder(orderId);
         
@@ -179,9 +205,20 @@ public class OrderController {
     @PutMapping("/{orderId}/status")
     public ResponseEntity<OrderDTO> updateOrderStatus(
             @Parameter(description = "訂單ID", required = true) @PathVariable Long orderId,
-            @Valid @RequestBody UpdateOrderStatusRequest request) {
+            @Valid @RequestBody UpdateOrderStatusRequest request,
+            HttpServletRequest httpRequest) {
+
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        logger.info("更新訂單狀態請求: orderId={}, newStatus={}, userId={}",
+                orderId, request.getStatus(), userId);
         
-        logger.info("更新訂單狀態請求: orderId={}, newStatus={}", orderId, request.getStatus());
+        // 狀態變更僅限訂單擁有者（後續可擴充 ADMIN 角色）
+        OrderDTO existing = orderService.getOrder(orderId);
+        if (userId == null || !userId.equals(existing.getUserId())) {
+            logger.warn("拒絕越權更新訂單狀態: orderId={}, requester={}, owner={}",
+                    orderId, userId, existing.getUserId());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         
         OrderDTO order = orderService.updateOrderStatus(orderId, request);
         

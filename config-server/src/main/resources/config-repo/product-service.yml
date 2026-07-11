@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/microservices_db
-    username: postgres
-    password: password
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/product_db}
+    username: ${SPRING_DATASOURCE_USERNAME:product_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:product_pass}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -15,6 +15,11 @@ spring:
 
 server:
   port: 8081
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
 
 management:
   endpoints:

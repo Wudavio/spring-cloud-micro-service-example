@@ -193,8 +193,15 @@ public class OrderServiceImpl implements OrderService {
         
         Order order = orderRepository.findById(orderId)
             .orElseThrow(() -> new OrderNotFoundException("訂單不存在: " + orderId));
+
+        OrderStatus current = order.getStatus();
+        OrderStatus next = request.getStatus();
+        if (!isValidTransition(current, next)) {
+            throw new IllegalStateException(
+                    String.format("非法訂單狀態轉換: %s -> %s", current, next));
+        }
         
-        order.setStatus(request.getStatus());
+        order.setStatus(next);
         orderRepository.save(order);
         
         OrderDTO orderDTO = orderMapper.toDTO(order);
@@ -211,6 +218,22 @@ public class OrderServiceImpl implements OrderService {
         return orderRepository.existsByOrderNumber(orderNumber);
     }
     
+    /**
+     * 允許的訂單狀態轉換（避免任意跳轉）
+     */
+    private boolean isValidTransition(OrderStatus current, OrderStatus next) {
+        if (current == null || next == null || current == next) {
+            return false;
+        }
+        return switch (current) {
+            case PENDING -> next == OrderStatus.CONFIRMED || next == OrderStatus.CANCELLED;
+            case CONFIRMED -> next == OrderStatus.SHIPPED || next == OrderStatus.CANCELLED;
+            case SHIPPED -> next == OrderStatus.DELIVERED || next == OrderStatus.CANCELLED;
+            case DELIVERED -> false;
+            case CANCELLED -> false;
+        };
+    }
+
     /**
      * 生成訂單號
      */

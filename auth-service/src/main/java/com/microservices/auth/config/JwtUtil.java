@@ -87,7 +87,18 @@ public class JwtUtil {
     public String generateToken(UserDetails userDetails, Long userId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
+        // 寫入角色，供下游服務授權判斷
+        userDetails.getAuthorities().stream().findFirst().ifPresent(auth ->
+                claims.put("role", auth.getAuthority().replace("ROLE_", "")));
         return createToken(claims, userDetails.getUsername());
+    }
+
+    /**
+     * 從 token 中獲取角色
+     */
+    public String getRoleFromToken(String token) {
+        Claims claims = getAllClaimsFromToken(token);
+        return claims.get("role", String.class);
     }
     
     /**
