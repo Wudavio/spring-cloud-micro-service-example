@@ -4,6 +4,17 @@ server:
 spring:
   cloud:
     gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowed-origins:
+              - ${GATEWAY_CORS_ALLOWED_ORIGIN:http://localhost:3000}
+            allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+            allowed-headers: [Authorization, Content-Type, Accept, X-Requested-With]
+            exposed-headers: [X-Request-Id, X-Trace-Id]
+            allow-credentials: true
+            max-age: 3600
       routes:
         - id: product-service
           uri: lb://product-service
@@ -35,6 +46,30 @@ spring:
             - Path=/api/orders/**
           filters:
             - StripPrefix=1
+        - id: auth-service-swagger
+          uri: lb://auth-service
+          predicates:
+            - Path=/v3/api-docs/auth-service
+          filters:
+            - RewritePath=/v3/api-docs/auth-service, /v3/api-docs
+        - id: product-service-swagger
+          uri: lb://product-service
+          predicates:
+            - Path=/v3/api-docs/product-service
+          filters:
+            - RewritePath=/v3/api-docs/product-service, /v3/api-docs
+        - id: inventory-service-swagger
+          uri: lb://inventory-service
+          predicates:
+            - Path=/v3/api-docs/inventory-service
+          filters:
+            - RewritePath=/v3/api-docs/inventory-service, /v3/api-docs
+        - id: order-service-swagger
+          uri: lb://order-service
+          predicates:
+            - Path=/v3/api-docs/order-service
+          filters:
+            - RewritePath=/v3/api-docs/order-service, /v3/api-docs
       default-filters:
         - AddRequestHeader=X-Request-Source, api-gateway
         - AddResponseHeader=X-Response-Source, api-gateway

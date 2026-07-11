@@ -3,6 +3,7 @@ package com.microservices.product.controller;
 import com.microservices.product.dto.CreateProductRequest;
 import com.microservices.product.dto.ProductDTO;
 import com.microservices.product.dto.UpdateProductRequest;
+import com.microservices.common.api.PageResponse;
 import com.microservices.product.entity.ProductStatus;
 import com.microservices.product.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +13,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -24,7 +26,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/products")
-@CrossOrigin(origins = "*")
 @Tag(name = "產品管理", description = "產品 CRUD 操作、狀態管理和查詢功能")
 public class ProductController {
 
@@ -39,10 +40,10 @@ public class ProductController {
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "查詢成功",
                 content = @Content(mediaType = "application/json", 
-                schema = @Schema(implementation = Page.class)))
+                schema = @Schema(implementation = PageResponse.class)))
     })
     @GetMapping
-    public ResponseEntity<Page<ProductDTO>> getProducts(
+    public ResponseEntity<PageResponse<ProductDTO>> getProducts(
             @Parameter(description = "產品分類") @RequestParam(value = "category", required = false) String category,
             @Parameter(description = "搜尋關鍵字") @RequestParam(value = "keyword", required = false) String keyword,
             @Parameter(description = "是否只顯示啟用產品") @RequestParam(value = "activeOnly", defaultValue = "true") boolean activeOnly,
@@ -60,7 +61,7 @@ public class ProductController {
             products = productService.getAllProducts(pageable);
         }
         
-        return ResponseEntity.ok(products);
+        return ResponseEntity.ok(PageResponse.from(products));
     }
 
     @Operation(summary = "查詢單一產品", description = "根據產品 ID 查詢產品詳細資訊")
@@ -79,8 +80,9 @@ public class ProductController {
             ? productService.getActiveProductById(id)
             : productService.getProductById(id);
             
-        return product.map(ResponseEntity::ok)
-                     .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(product.orElseThrow(() ->
+                new com.microservices.product.exception.ProductNotFoundException(
+                        "Product not found with id: " + id)));
     }
 
     @Operation(summary = "創建產品", description = "創建新產品")
@@ -91,14 +93,11 @@ public class ProductController {
         @ApiResponse(responseCode = "400", description = "請求參數錯誤")
     })
     @PostMapping
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ProductDTO> createProduct(
             @Parameter(description = "產品創建請求") @Valid @RequestBody CreateProductRequest request) {
-        try {
-            ProductDTO createdProduct = productService.createProduct(request);
-            return ResponseEntity.status(HttpStatus.CREATED).body(createdProduct);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
+        ProductDTO createdProduct = productService.createProduct(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdProduct);
     }
 
     @Operation(summary = "更新產品", description = "更新產品資訊")
@@ -110,15 +109,12 @@ public class ProductController {
         @ApiResponse(responseCode = "404", description = "產品不存在")
     })
     @PutMapping("/{id}")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ProductDTO> updateProduct(
             @Parameter(description = "產品 ID") @PathVariable("id") Long id, 
             @Parameter(description = "產品更新請求") @Valid @RequestBody UpdateProductRequest request) {
-        try {
-            ProductDTO updatedProduct = productService.updateProduct(id, request);
-            return ResponseEntity.ok(updatedProduct);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
+        ProductDTO updatedProduct = productService.updateProduct(id, request);
+        return ResponseEntity.ok(updatedProduct);
     }
 
     @Operation(summary = "刪除產品", description = "刪除產品（軟刪除）")
@@ -128,14 +124,11 @@ public class ProductController {
         @ApiResponse(responseCode = "404", description = "產品不存在")
     })
     @DeleteMapping("/{id}")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<Void> deleteProduct(
             @Parameter(description = "產品 ID") @PathVariable("id") Long id) {
-        try {
-            productService.deleteProduct(id);
-            return ResponseEntity.noContent().build();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
+        productService.deleteProduct(id);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "變更產品狀態", description = "變更產品的啟用/停用狀態")
@@ -145,35 +138,32 @@ public class ProductController {
         @ApiResponse(responseCode = "404", description = "產品不存在")
     })
     @PutMapping("/{id}/status")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<Void> changeProductStatus(
             @Parameter(description = "產品 ID") @PathVariable("id") Long id,
             @Parameter(description = "新狀態") @RequestParam("status") ProductStatus status) {
-        try {
-            productService.changeProductStatus(id, status);
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
+        productService.changeProductStatus(id, status);
+        return ResponseEntity.ok().build();
     }
 
     @Operation(summary = "搜尋產品", description = "根據關鍵字搜尋產品")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "搜尋成功",
                 content = @Content(mediaType = "application/json", 
-                schema = @Schema(implementation = Page.class))),
+                schema = @Schema(implementation = PageResponse.class))),
         @ApiResponse(responseCode = "400", description = "搜尋關鍵字不能為空")
     })
     @GetMapping("/search")
-    public ResponseEntity<Page<ProductDTO>> searchProducts(
+    public ResponseEntity<PageResponse<ProductDTO>> searchProducts(
             @Parameter(description = "搜尋關鍵字") @RequestParam("keyword") String keyword, 
             @Parameter(description = "分頁參數") Pageable pageable) {
         
         if (keyword == null || keyword.trim().isEmpty()) {
-            return ResponseEntity.badRequest().build();
+            throw new IllegalArgumentException("Search keyword must not be blank");
         }
         
         Page<ProductDTO> products = productService.searchProducts(keyword.trim(), pageable);
-        return ResponseEntity.ok(products);
+        return ResponseEntity.ok(PageResponse.from(products));
     }
 
     @Operation(summary = "檢查產品是否存在", description = "檢查指定 ID 的產品是否存在")

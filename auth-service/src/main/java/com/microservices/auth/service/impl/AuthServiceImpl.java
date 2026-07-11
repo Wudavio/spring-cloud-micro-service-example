@@ -51,7 +51,7 @@ public class AuthServiceImpl implements AuthService {
         
         logger.info("用戶註冊成功: userId={}, username={}", userDTO.getUserId(), userDTO.getUsername());
         
-        return new AuthResponse(token, userDTO);
+        return authResponse(token, userDTO);
     }
     
     @Override
@@ -78,12 +78,18 @@ public class AuthServiceImpl implements AuthService {
             
             logger.info("用戶登入成功: userId={}, username={}", user.getUserId(), user.getUsername());
             
-            return new AuthResponse(token, userDTO);
+            return authResponse(token, userDTO);
             
         } catch (AuthenticationException e) {
             logger.error("用戶登入失敗: usernameOrEmail={}, error={}", request.getUsernameOrEmail(), e.getMessage());
             throw new BadCredentialsException("用戶名或密碼錯誤");
         }
+    }
+
+    private AuthResponse authResponse(String token, UserDTO user) {
+        long expiresIn = jwtUtil.getExpirationSeconds();
+        return new AuthResponse(token, user, expiresIn,
+                java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).plusSeconds(expiresIn));
     }
     
     @Override

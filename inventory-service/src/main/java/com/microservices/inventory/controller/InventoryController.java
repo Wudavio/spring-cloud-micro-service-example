@@ -8,10 +8,12 @@ import com.microservices.inventory.service.InventoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +25,6 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -104,17 +105,13 @@ public class InventoryController {
             @Parameter(description = "產品 ID") @PathVariable("productId") Long productId) {
         logger.info("查詢產品庫存: productId={}", productId);
         
-        Optional<Inventory> inventory = inventoryService.findByProductId(productId);
-        
-        if (inventory.isPresent()) {
-            InventoryDTO inventoryDTO = InventoryMapper.toDTO(inventory.get());
-            logger.info("庫存查詢成功: productId={}, availableStock={}", 
-                       productId, inventoryDTO.getAvailableStock());
-            return ResponseEntity.ok(inventoryDTO);
-        } else {
-            logger.warn("產品庫存不存在: productId={}", productId);
-            return ResponseEntity.notFound().build();
-        }
+        Inventory inventory = inventoryService.findByProductId(productId)
+                .orElseThrow(() -> new com.microservices.inventory.exception.InventoryNotFoundException(
+                        "Inventory not found for productId: " + productId));
+        InventoryDTO inventoryDTO = InventoryMapper.toDTO(inventory);
+        logger.info("庫存查詢成功: productId={}, availableStock={}",
+                productId, inventoryDTO.getAvailableStock());
+        return ResponseEntity.ok(inventoryDTO);
     }
     
     /**
@@ -134,6 +131,7 @@ public class InventoryController {
         @ApiResponse(responseCode = "404", description = "產品不存在")
     })
     @PostMapping("/{productId}/reserve")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ReservationDTO> reserveInventory(
             @Parameter(description = "產品 ID") @PathVariable Long productId,
             @Parameter(description = "預留請求") @Valid @RequestBody ReserveInventoryRequest request) {
@@ -143,7 +141,8 @@ public class InventoryController {
         
         try {
             // 如果沒有指定過期時間，預設為30分鐘後過期
-            LocalDateTime expiresAt = request.getExpiresAt();
+            LocalDateTime expiresAt = request.getExpiresAt() == null
+                    ? null : request.getExpiresAt().toInstant().atOffset(java.time.ZoneOffset.UTC).toLocalDateTime();
             if (expiresAt == null) {
                 expiresAt = LocalDateTime.now().plusMinutes(30);
             }
@@ -185,6 +184,7 @@ public class InventoryController {
         @ApiResponse(responseCode = "404", description = "產品不存在")
     })
     @PostMapping("/{productId}/release")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<Void> releaseInventory(
             @Parameter(description = "產品 ID") @PathVariable Long productId,
             @Parameter(description = "釋放請求") @Valid @RequestBody ReleaseInventoryRequest request) {
@@ -237,6 +237,7 @@ public class InventoryController {
         @ApiResponse(responseCode = "404", description = "產品不存在")
     })
     @PostMapping("/{productId}/confirm")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ReservationDTO> confirmReservation(
             @Parameter(description = "產品 ID") @PathVariable Long productId,
             @Parameter(description = "確認請求") @Valid @RequestBody ConfirmReservationRequest request) {
@@ -282,6 +283,7 @@ public class InventoryController {
         @ApiResponse(responseCode = "404", description = "產品不存在")
     })
     @PutMapping("/{productId}/stock")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<InventoryDTO> updateStock(
             @Parameter(description = "產品 ID") @PathVariable Long productId,
             @Parameter(description = "更新請求") @Valid @RequestBody UpdateStockRequest request) {
@@ -306,6 +308,7 @@ public class InventoryController {
      */
     @Operation(summary = "建立庫存", description = "為產品建立初始庫存記錄")
     @PostMapping("/{productId}")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<InventoryDTO> createInventory(
             @Parameter(description = "產品 ID") @PathVariable Long productId,
             @Parameter(description = "初始庫存") @Valid @RequestBody UpdateStockRequest request) {
@@ -324,7 +327,7 @@ public class InventoryController {
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "查詢成功",
                 content = @Content(mediaType = "application/json", 
-                schema = @Schema(implementation = ReservationDTO.class)))
+                array = @ArraySchema(schema = @Schema(implementation = ReservationDTO.class))))
     })
     @GetMapping("/reservations")
     public ResponseEntity<List<ReservationDTO>> getCustomerReservations(
@@ -351,7 +354,7 @@ public class InventoryController {
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "查詢成功",
                 content = @Content(mediaType = "application/json", 
-                schema = @Schema(implementation = ReservationDTO.class)))
+                array = @ArraySchema(schema = @Schema(implementation = ReservationDTO.class))))
     })
     @GetMapping("/{productId}/reservations")
     public ResponseEntity<List<ReservationDTO>> getProductReservations(
@@ -404,6 +407,7 @@ public class InventoryController {
                 schema = @Schema(implementation = Map.class)))
     })
     @PostMapping("/cleanup-expired")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<Map<String, Integer>> cleanupExpiredReservations() {
         logger.info("開始清理過期臨時預留");
         

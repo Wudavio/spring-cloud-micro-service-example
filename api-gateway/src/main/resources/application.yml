@@ -14,6 +14,17 @@ spring:
         max-interval: 2000
         multiplier: 1.1
     gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowed-origins:
+              - ${GATEWAY_CORS_ALLOWED_ORIGIN:http://localhost:3000}
+            allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+            allowed-headers: [Authorization, Content-Type, Accept, X-Requested-With]
+            exposed-headers: [X-Request-Id, X-Trace-Id]
+            allow-credentials: true
+            max-age: 3600
       discovery:
         locator:
           enabled: false
@@ -99,7 +110,7 @@ eureka:
   instance:
     prefer-ip-address: true
 
-# Actuator 配置
+# Actuator 配置（對外僅健康／閘道路由診斷；loggers 不在公開面）
 management:
   endpoints:
     web:
@@ -107,7 +118,7 @@ management:
         include: health,info,gateway
   endpoint:
     health:
-      show-details: always
+      show-details: when_authorized
     gateway:
       enabled: true
   tracing:

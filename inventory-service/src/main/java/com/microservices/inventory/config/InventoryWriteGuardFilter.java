@@ -1,5 +1,10 @@
 package com.microservices.inventory.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microservices.common.api.ApiErrorResponse;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,8 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -29,6 +33,15 @@ public class InventoryWriteGuardFilter extends OncePerRequestFilter {
 
     @Value("${security.write-guard.enabled:true}")
     private boolean enabled;
+
+    @Value("${jwt.secret}")
+    private String jwtSecret;
+
+    private final ObjectMapper objectMapper;
+
+    public InventoryWriteGuardFilter(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -53,17 +66,25 @@ public class InventoryWriteGuardFilter extends OncePerRequestFilter {
 
         String auth = request.getHeader("Authorization");
         if (auth == null || !auth.startsWith("Bearer ")) {
-            unauthorized(response, "Missing Authorization header");
+            writeError(request, response, HttpServletResponse.SC_UNAUTHORIZED,
+                    "AUTHENTICATION_REQUIRED", "Missing Authorization header");
             return;
         }
 
-        boolean adminOnly = path.contains("/stock") || path.contains("/cleanup-expired");
-        if (adminOnly) {
-            String role = extractRole(auth.substring(7));
+        Claims claims;
+        try {
+            claims = parseClaims(auth.substring(7));
+        } catch (Exception ex) {
+            writeError(request, response, HttpServletResponse.SC_UNAUTHORIZED,
+                    "INVALID_TOKEN", "Invalid or expired token");
+            return;
+        }
+
+        if (requiresAdmin(path, method)) {
+            String role = claims.get("role", String.class);
             if (!"ADMIN".equalsIgnoreCase(role)) {
-                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"error\":\"ADMIN role required for stock management\"}");
+                writeError(request, response, HttpServletResponse.SC_FORBIDDEN,
+                        "ACCESS_DENIED", "ADMIN role required for stock management");
                 return;
             }
         }
@@ -75,32 +96,34 @@ public class InventoryWriteGuardFilter extends OncePerRequestFilter {
         return path.startsWith("/inventory") || path.startsWith("/api/inventory");
     }
 
-    private String extractRole(String jwt) {
-        try {
-            String[] parts = jwt.split("\\.");
-            if (parts.length < 2) {
-                return null;
-            }
-            String payloadJson = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
-            int idx = payloadJson.indexOf("\"role\"");
-            if (idx < 0) {
-                return null;
-            }
-            int colon = payloadJson.indexOf(':', idx);
-            int startQuote = payloadJson.indexOf('"', colon + 1);
-            int endQuote = payloadJson.indexOf('"', startQuote + 1);
-            if (startQuote < 0 || endQuote < 0) {
-                return null;
-            }
-            return payloadJson.substring(startQuote + 1, endQuote);
-        } catch (Exception e) {
-            return null;
+    /**
+     * stock 調整、建立庫存、清理過期預留僅 ADMIN。
+     * POST /inventory/{productId}（無後續子路徑）視為建立庫存。
+     */
+    private boolean requiresAdmin(String path, String method) {
+        if (path.contains("/stock") || path.contains("/cleanup-expired")) {
+            return true;
         }
+        if (!"POST".equalsIgnoreCase(method)) {
+            return false;
+        }
+        String normalized = path.startsWith("/api/") ? path.substring(4) : path;
+        return normalized.matches("/inventory/\\d+/?");
     }
 
-    private void unauthorized(HttpServletResponse response, String message) throws IOException {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    private Claims parseClaims(String jwt) {
+        return Jwts.parserBuilder()
+                .setSigningKey(Keys.hmacShaKeyFor(jwtSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                .build()
+                .parseClaimsJws(jwt)
+                .getBody();
+    }
+
+    private void writeError(HttpServletRequest request, HttpServletResponse response,
+                            int status, String code, String message) throws IOException {
+        response.setStatus(status);
         response.setContentType("application/json");
-        response.getWriter().write("{\"error\":\"" + message + "\"}");
+        objectMapper.writeValue(response.getWriter(), ApiErrorResponse.of(status, code, message,
+                request.getRequestURI(), org.slf4j.MDC.get("traceId"), Map.of()));
     }
 }

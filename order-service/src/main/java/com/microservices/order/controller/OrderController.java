@@ -3,6 +3,7 @@ package com.microservices.order.controller;
 import com.microservices.order.dto.OrderDTO;
 import com.microservices.order.dto.PlaceOrderRequest;
 import com.microservices.order.dto.UpdateOrderStatusRequest;
+import com.microservices.common.api.PageResponse;
 import com.microservices.order.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -28,8 +30,8 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/orders")
-@CrossOrigin(origins = "*")
 @Tag(name = "訂單管理", description = "訂單相關的 API 操作")
+@SecurityRequirement(name = "bearerAuth")
 public class OrderController {
     
     private static final Logger logger = LoggerFactory.getLogger(OrderController.class);
@@ -54,7 +56,8 @@ public class OrderController {
                                              HttpServletRequest httpRequest) {
         Long userId = (Long) httpRequest.getAttribute("userId");
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException(
+                    "Authentication is required");
         }
         request.setUserId(userId);
         
@@ -90,7 +93,7 @@ public class OrderController {
         if (userId == null || !userId.equals(order.getUserId())) {
             logger.warn("拒絕越權讀取訂單: orderId={}, requester={}, owner={}",
                     orderId, userId, order.getUserId());
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw new org.springframework.security.access.AccessDeniedException("Cannot access another user's order");
         }
         
         logger.info("成功獲取訂單: orderId={}, orderNumber={}, status={}", 
@@ -121,7 +124,7 @@ public class OrderController {
         if (userId == null || !userId.equals(order.getUserId())) {
             logger.warn("拒絕越權讀取訂單: orderNumber={}, requester={}, owner={}",
                     orderNumber, userId, order.getUserId());
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw new org.springframework.security.access.AccessDeniedException("Cannot access another user's order");
         }
         
         logger.info("成功根據訂單號獲取訂單: orderNumber={}, customerId={}, status={}", 
@@ -136,11 +139,12 @@ public class OrderController {
     @Operation(summary = "獲取客戶訂單列表", description = "分頁獲取指定客戶的訂單列表")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "成功獲取訂單列表",
-                content = @Content(mediaType = "application/json")),
+                content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = PageResponse.class))),
         @ApiResponse(responseCode = "400", description = "請求參數無效")
     })
     @GetMapping
-    public ResponseEntity<Page<OrderDTO>> getUserOrders(
+    public ResponseEntity<PageResponse<OrderDTO>> getUserOrders(
             HttpServletRequest httpRequest,
             @Parameter(description = "分頁參數") @PageableDefault(size = 20) Pageable pageable) {
         
@@ -154,7 +158,7 @@ public class OrderController {
         logger.info("成功獲取客戶訂單列表: userId={}, totalOrders={}, currentPageSize={}", 
                    userId, orders.getTotalElements(), orders.getNumberOfElements());
         
-        return ResponseEntity.ok(orders);
+        return ResponseEntity.ok(PageResponse.from(orders));
     }
     
     /**
@@ -180,7 +184,7 @@ public class OrderController {
         if (userId == null || !userId.equals(existing.getUserId())) {
             logger.warn("拒絕越權取消訂單: orderId={}, requester={}, owner={}",
                     orderId, userId, existing.getUserId());
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw new org.springframework.security.access.AccessDeniedException("Cannot cancel another user's order");
         }
         
         OrderDTO order = orderService.cancelOrder(orderId);
@@ -209,15 +213,15 @@ public class OrderController {
             HttpServletRequest httpRequest) {
 
         Long userId = (Long) httpRequest.getAttribute("userId");
-        logger.info("更新訂單狀態請求: orderId={}, newStatus={}, userId={}",
-                orderId, request.getStatus(), userId);
-        
-        // 狀態變更僅限訂單擁有者（後續可擴充 ADMIN 角色）
-        OrderDTO existing = orderService.getOrder(orderId);
-        if (userId == null || !userId.equals(existing.getUserId())) {
-            logger.warn("拒絕越權更新訂單狀態: orderId={}, requester={}, owner={}",
-                    orderId, userId, existing.getUserId());
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        String role = (String) httpRequest.getAttribute("role");
+        logger.info("更新訂單狀態請求: orderId={}, newStatus={}, userId={}, role={}",
+                orderId, request.getStatus(), userId, role);
+
+        if (!("ADMIN".equals(role) || "OPERATOR".equals(role))) {
+            logger.warn("拒絕非營運角色更新訂單狀態: orderId={}, requester={}, role={}",
+                    orderId, userId, role);
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "ADMIN or OPERATOR role is required to update order status");
         }
         
         OrderDTO order = orderService.updateOrderStatus(orderId, request);

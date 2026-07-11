@@ -30,6 +30,9 @@ spring:
   cloud:
     config:
       enabled: false
+
+jwt:
+  secret: testSecretKeyForJwtSigningThatIsAtLeast32BytesLong
       
 eureka:
   client:

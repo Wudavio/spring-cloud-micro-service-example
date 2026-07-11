@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -25,8 +26,8 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/cart")
-@CrossOrigin(origins = "*")
 @Tag(name = "購物車管理", description = "購物車相關的 API 操作")
+@SecurityRequirement(name = "bearerAuth")
 public class CartController {
     
     private static final Logger logger = LoggerFactory.getLogger(CartController.class);
@@ -84,7 +85,8 @@ public class CartController {
         // 身份一律來自 JWT，禁止客戶端偽造 userId
         Long userId = (Long) httpRequest.getAttribute("userId");
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException(
+                    "Authentication is required");
         }
         request.setUserId(userId);
         

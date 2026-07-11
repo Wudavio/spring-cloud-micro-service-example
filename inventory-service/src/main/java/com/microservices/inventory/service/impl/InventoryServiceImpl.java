@@ -61,8 +61,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     public Inventory createInventory(Long productId, Integer initialStock, Integer lowStockThreshold) {
-        // 在測試環境中跳過產品驗證
-        if (!isTestEnvironment() && !isProductExistsInProductService(productId)) {
+        if (!isProductExistsInProductService(productId)) {
             throw new IllegalArgumentException("產品不存在，無法創建庫存記錄。產品ID: " + productId);
         }
 

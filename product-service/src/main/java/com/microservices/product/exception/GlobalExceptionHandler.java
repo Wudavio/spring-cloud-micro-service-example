@@ -1,120 +1,51 @@
 package com.microservices.product.exception;
 
+import com.microservices.common.api.ApiErrorResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import jakarta.servlet.http.HttpServletRequest;
-import java.time.LocalDateTime;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ProductNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleProductNotFoundException(ProductNotFoundException ex) {
-        ErrorResponse error = new ErrorResponse(
-                HttpStatus.NOT_FOUND.value(),
-                "Product Not Found",
-                ex.getMessage(),
-                LocalDateTime.now()
-        );
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    ResponseEntity<ApiErrorResponse> notFound(ProductNotFoundException ex, HttpServletRequest request) {
+        return error(HttpStatus.NOT_FOUND, "PRODUCT_NOT_FOUND", ex.getMessage(), request, Map.of());
     }
 
     @ExceptionHandler(DuplicateProductNameException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicateProductNameException(DuplicateProductNameException ex) {
-        ErrorResponse error = new ErrorResponse(
-                HttpStatus.CONFLICT.value(),
-                "Duplicate Product Name",
-                ex.getMessage(),
-                LocalDateTime.now()
-        );
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    ResponseEntity<ApiErrorResponse> duplicate(DuplicateProductNameException ex, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, "DUPLICATE_PRODUCT_NAME", ex.getMessage(), request, Map.of());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
+    ResponseEntity<ApiErrorResponse> validation(MethodArgumentNotValidException ex, HttpServletRequest request) {
+        Map<String, String> details = new LinkedHashMap<>();
+        ex.getBindingResult().getFieldErrors().forEach(e -> details.putIfAbsent(e.getField(), e.getDefaultMessage()));
+        return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Request validation failed", request, details);
+    }
 
-        ValidationErrorResponse errorResponse = new ValidationErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                "Validation Failed",
-                "Request validation failed",
-                LocalDateTime.now(),
-                errors
-        );
-        return ResponseEntity.badRequest().body(errorResponse);
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity<ApiErrorResponse> invalidRequest(IllegalArgumentException ex, HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", ex.getMessage(), request, Map.of());
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, 
-                                                               HttpServletRequest request) {
-        // 不攔截 Swagger/OpenAPI 相關的請求
-        String requestURI = request.getRequestURI();
-        if (requestURI.contains("/v3/api-docs") || 
-            requestURI.contains("/swagger-ui") || 
-            requestURI.contains("/swagger-resources")) {
-            throw new RuntimeException(ex);
-        }
-        
-        // 打印完整的異常堆棧用於調試
-        System.err.println("=== Product Service Exception ===");
-        ex.printStackTrace();
-        System.err.println("=== End Exception ===");
-        
-        ErrorResponse error = new ErrorResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "Internal Server Error",
-                "An unexpected error occurred: " + ex.getMessage(),
-                LocalDateTime.now()
-        );
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    ResponseEntity<ApiErrorResponse> general(Exception ex, HttpServletRequest request) {
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR",
+                "An unexpected error occurred", request, Map.of());
     }
 
-    public static class ErrorResponse {
-        private int status;
-        private String error;
-        private String message;
-        private LocalDateTime timestamp;
-
-        public ErrorResponse(int status, String error, String message, LocalDateTime timestamp) {
-            this.status = status;
-            this.error = error;
-            this.message = message;
-            this.timestamp = timestamp;
-        }
-
-        // Getters and setters
-        public int getStatus() { return status; }
-        public void setStatus(int status) { this.status = status; }
-        public String getError() { return error; }
-        public void setError(String error) { this.error = error; }
-        public String getMessage() { return message; }
-        public void setMessage(String message) { this.message = message; }
-        public LocalDateTime getTimestamp() { return timestamp; }
-        public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
-    }
-
-    public static class ValidationErrorResponse extends ErrorResponse {
-        private Map<String, String> fieldErrors;
-
-        public ValidationErrorResponse(int status, String error, String message, 
-                                     LocalDateTime timestamp, Map<String, String> fieldErrors) {
-            super(status, error, message, timestamp);
-            this.fieldErrors = fieldErrors;
-        }
-
-        public Map<String, String> getFieldErrors() { return fieldErrors; }
-        public void setFieldErrors(Map<String, String> fieldErrors) { this.fieldErrors = fieldErrors; }
+    private ResponseEntity<ApiErrorResponse> error(HttpStatus status, String code, String message,
+                                                    HttpServletRequest request, Map<String, String> details) {
+        return ResponseEntity.status(status).body(ApiErrorResponse.of(status.value(), code, message,
+                request.getRequestURI(), MDC.get("traceId"), details));
     }
 }

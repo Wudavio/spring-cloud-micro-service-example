@@ -15,6 +15,11 @@
     <description>認證和用戶管理服務</description>
     
     <dependencies>
+        <dependency>
+            <groupId>com.microservices</groupId>
+            <artifactId>common-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- Spring Boot Starters -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

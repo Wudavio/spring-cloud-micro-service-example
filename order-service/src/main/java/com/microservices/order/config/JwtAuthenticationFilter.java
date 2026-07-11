@@ -1,5 +1,8 @@
 package com.microservices.order.config;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microservices.common.api.ApiErrorResponse;
 import com.microservices.order.client.AuthServiceClient;
 import feign.FeignException;
 import jakarta.servlet.FilterChain;
@@ -13,6 +16,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Map;
 
 /**
  * JWT 認證過濾器
@@ -25,6 +31,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     
     @Autowired
     private AuthServiceClient authServiceClient;
+
+    @Autowired
+    private ObjectMapper objectMapper;
     
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, 
@@ -46,27 +55,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 
                 // 將用戶ID設置到請求屬性中
                 request.setAttribute("userId", userId);
+                request.setAttribute("role", extractRole(authHeader.substring(7)));
                 
                 logger.debug("成功驗證用戶: userId={}", userId);
                 
             } catch (FeignException e) {
                 logger.error("Token 驗證失敗: {}", e.getMessage());
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"error\":\"Invalid or expired token\"}");
+                writeError(request, response, "INVALID_TOKEN", "Invalid or expired token");
                 return;
             } catch (Exception e) {
                 logger.error("Token 驗證異常: {}", e.getMessage());
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"error\":\"Authentication failed\"}");
+                writeError(request, response, "AUTHENTICATION_FAILED", "Authentication failed");
                 return;
             }
         } else {
             logger.debug("缺少 Authorization header: path={}", requestPath);
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"error\":\"Missing Authorization header\"}");
+            writeError(request, response, "AUTHENTICATION_REQUIRED", "Missing Authorization header");
             return;
         }
         
@@ -80,7 +84,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return requestPath.startsWith("/actuator/") ||
                requestPath.startsWith("/swagger-ui/") ||
                requestPath.startsWith("/v3/api-docs") ||
-               requestPath.equals("/swagger-ui.html") ||
-               requestPath.startsWith("/api/logging/");
+               requestPath.equals("/swagger-ui.html");
+    }
+
+    private String extractRole(String jwt) throws IOException {
+        String[] parts = jwt.split("\\.");
+        if (parts.length != 3) {
+            throw new IOException("Malformed JWT");
+        }
+        JsonNode payload = objectMapper.readTree(
+                new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8));
+        return payload.path("role").asText(null);
+    }
+
+    private void writeError(HttpServletRequest request, HttpServletResponse response,
+                            String code, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        objectMapper.writeValue(response.getWriter(), ApiErrorResponse.of(
+                HttpServletResponse.SC_UNAUTHORIZED, code, message, request.getRequestURI(),
+                org.slf4j.MDC.get("traceId"), Map.of()));
     }
 }

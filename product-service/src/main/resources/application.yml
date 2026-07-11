@@ -31,6 +31,9 @@ spring:
 server:
   port: 8081
 
+jwt:
+  secret: ${JWT_SECRET}
+
 # 日誌配置 - 結構化日誌
 logging:
   level:
@@ -106,10 +109,11 @@ management:
   endpoints:
     web:
       exposure:
+        # 自製 /api/logging 已移除；loggers 僅在內部網路需要時再打開
         include: health,info,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: when_authorized
   tracing:
     sampling:
       probability: 1.0
@@ -123,4 +127,4 @@ springdoc:
     enabled: true
     operations-sorter: alpha
     tags-sorter: alpha
-  show-actuator: true
+  show-actuator: false

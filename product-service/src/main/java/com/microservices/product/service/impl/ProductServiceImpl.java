@@ -168,8 +168,12 @@ public class ProductServiceImpl implements ProductService {
         
         ProductStatus previousStatus = product.getStatus();
         product.setStatus(status);
-        // Explicitly set updatedAt to ensure version increment
-        product.setUpdatedAt(LocalDateTime.now());
+        LocalDateTime baseline = product.getUpdatedAt();
+        if (product.getCreatedAt() != null && (baseline == null || product.getCreatedAt().isAfter(baseline))) {
+            baseline = product.getCreatedAt();
+        }
+        LocalDateTime now = LocalDateTime.now();
+        product.setUpdatedAt(baseline == null || now.isAfter(baseline) ? now : baseline.plusNanos(1_000));
         Product updatedProduct = productRepository.save(product);
         
         // Publish product status changed event

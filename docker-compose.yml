@@ -294,12 +294,13 @@ services:
       context: ./product-service
       dockerfile: Dockerfile
     container_name: product-service
-    ports:
-      - "8081:8081"
+    expose:
+      - "8081"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/product_db
       - SPRING_DATASOURCE_USERNAME=product_user
       - SPRING_DATASOURCE_PASSWORD=product_pass
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env}
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - eureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/
@@ -345,14 +346,15 @@ services:
       context: ./inventory-service
       dockerfile: Dockerfile
     container_name: inventory-service
-    ports:
-      - "8082:8082"
+    expose:
+      - "8082"
     environment:
       - SPRING_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/inventory_db
       - SPRING_DATASOURCE_USERNAME=inventory_user
       - SPRING_DATASOURCE_PASSWORD=inventory_pass
       - DB_USERNAME=inventory_user
       - DB_PASSWORD=inventory_pass
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SPRING_REDIS_HOST=redis
@@ -403,16 +405,16 @@ services:
       context: ./auth-service
       dockerfile: Dockerfile
     container_name: auth-service
-    ports:
-      - "8084:8084"
+    expose:
+      - "8084"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/auth_db
       - SPRING_DATASOURCE_USERNAME=auth_user
       - SPRING_DATASOURCE_PASSWORD=auth_pass
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - JWT_SECRET=myVerySecretKeyForJWTTokenGeneration123456789
-      - JWT_EXPIRATION=86400000
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
       # OpenTelemetry 非阻塞匯出設定
       - OTEL_SERVICE_NAME=auth-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4327
@@ -455,8 +457,8 @@ services:
       context: ./order-service
       dockerfile: Dockerfile
     container_name: order-service
-    ports:
-      - "8083:8083"
+    expose:
+      - "8083"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/order_db
       - SPRING_DATASOURCE_USERNAME=order_user

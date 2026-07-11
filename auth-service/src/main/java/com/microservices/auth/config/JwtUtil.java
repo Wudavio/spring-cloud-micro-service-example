@@ -22,7 +22,7 @@ public class JwtUtil {
     
     private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
     
-    @Value("${jwt.secret:mySecretKey}")
+    @Value("${jwt.secret}")
     private String secret;
     
     @Value("${jwt.expiration:86400000}") // 24小時
@@ -141,5 +141,9 @@ public class JwtUtil {
             logger.error("JWT token 格式驗證失敗: {}", e.getMessage());
             return false;
         }
+    }
+
+    public long getExpirationSeconds() {
+        return expiration / 1000;
     }
 }

@@ -26,6 +26,9 @@ spring:
     console:
       enabled: true
 
+jwt:
+  secret: testSecretKeyForJwtSigningThatIsAtLeast32BytesLong
+
 eureka:
   client:
     enabled: false

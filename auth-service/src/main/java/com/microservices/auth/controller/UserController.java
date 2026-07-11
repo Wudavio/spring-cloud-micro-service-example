@@ -2,8 +2,9 @@ package com.microservices.auth.controller;
 
 import com.microservices.auth.dto.UserDTO;
 import com.microservices.auth.entity.User;
-import com.microservices.auth.entity.UserRole;
+import com.microservices.auth.exception.UserNotFoundException;
 import com.microservices.auth.service.UserService;
+import com.microservices.common.api.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +20,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -29,8 +30,8 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/users")
-@CrossOrigin(origins = "*")
 @Tag(name = "用戶管理", description = "用戶管理相關的 API 操作")
+@SecurityRequirement(name = "bearerAuth")
 public class UserController {
     
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
@@ -56,15 +57,13 @@ public class UserController {
         logger.info("獲取用戶請求: userId={}", userId);
 
         if (!canAccessUser(authentication, request, userId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw new org.springframework.security.access.AccessDeniedException("Cannot access another user");
         }
         
-        return userService.findById(userId)
-                .map(user -> {
-                    logger.info("成功獲取用戶: userId={}, username={}", userId, user.getUsername());
-                    return ResponseEntity.ok(user);
-                })
-                .orElse(ResponseEntity.notFound().build());
+        UserDTO user = userService.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
+        logger.info("成功獲取用戶: userId={}, username={}", userId, user.getUsername());
+        return ResponseEntity.ok(user);
     }
     
     /**
@@ -72,14 +71,16 @@ public class UserController {
      */
     @Operation(summary = "獲取所有用戶", description = "分頁獲取所有用戶列表（ADMIN）")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "成功獲取用戶列表")
+        @ApiResponse(responseCode = "200", description = "成功獲取用戶列表",
+                content = @Content(mediaType = "application/json",
+                        schema = @Schema(implementation = PageResponse.class)))
     })
     @GetMapping
-    public ResponseEntity<Page<UserDTO>> getAllUsers(
+    public ResponseEntity<PageResponse<UserDTO>> getAllUsers(
             @PageableDefault(size = 20) Pageable pageable,
             Authentication authentication) {
         if (!isAdmin(authentication)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw new org.springframework.security.access.AccessDeniedException("ADMIN role is required");
         }
         logger.info("獲取用戶列表請求: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
         
@@ -88,7 +89,7 @@ public class UserController {
         logger.info("成功獲取用戶列表: totalElements={}, totalPages={}", 
                    users.getTotalElements(), users.getTotalPages());
         
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(PageResponse.from(users));
     }
     
     /**
@@ -96,15 +97,17 @@ public class UserController {
      */
     @Operation(summary = "搜索用戶", description = "根據用戶名搜索用戶（ADMIN）")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "搜索成功")
+        @ApiResponse(responseCode = "200", description = "搜索成功",
+                content = @Content(mediaType = "application/json",
+                        schema = @Schema(implementation = PageResponse.class)))
     })
     @GetMapping("/search")
-    public ResponseEntity<Page<UserDTO>> searchUsers(
+    public ResponseEntity<PageResponse<UserDTO>> searchUsers(
             @Parameter(description = "搜索關鍵字") @RequestParam String keyword,
             @PageableDefault(size = 20) Pageable pageable,
             Authentication authentication) {
         if (!isAdmin(authentication)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw new org.springframework.security.access.AccessDeniedException("ADMIN role is required");
         }
         logger.info("搜索用戶請求: keyword={}", keyword);
         
@@ -112,7 +115,7 @@ public class UserController {
         
         logger.info("搜索用戶完成: keyword={}, found={}", keyword, users.getTotalElements());
         
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(PageResponse.from(users));
     }
     
     /**
@@ -134,7 +137,7 @@ public class UserController {
         logger.info("更新用戶請求: userId={}", userId);
 
         if (!canAccessUser(authentication, request, userId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw new org.springframework.security.access.AccessDeniedException("Cannot update another user");
         }
 
         boolean admin = isAdmin(authentication);
@@ -164,7 +167,7 @@ public class UserController {
             @Parameter(description = "用戶ID", required = true) @PathVariable Long userId,
             Authentication authentication) {
         if (!isAdmin(authentication)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw new org.springframework.security.access.AccessDeniedException("ADMIN role is required");
         }
         logger.info("刪除用戶請求: userId={}", userId);
         

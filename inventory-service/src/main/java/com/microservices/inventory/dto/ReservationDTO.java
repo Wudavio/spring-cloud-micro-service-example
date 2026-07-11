@@ -1,12 +1,14 @@
 package com.microservices.inventory.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.microservices.inventory.entity.ReservationType;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 /**
  * 庫存預留記錄 DTO
@@ -27,13 +29,14 @@ public class ReservationDTO {
     private Integer quantity;
     
     @NotNull(message = "預留類型不能為空")
+    @Schema(allowableValues = {"TEMPORARY", "CONFIRMED"})
     private ReservationType type;
-    
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime expiresAt;
-    
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime createdAt;
+
+    @Schema(type = "string", format = "date-time", example = "2026-07-11T06:30:00Z")
+    private OffsetDateTime expiresAt;
+
+    @Schema(type = "string", format = "date-time", example = "2026-07-11T06:00:00Z")
+    private OffsetDateTime createdAt;
     
     private Boolean isExpired;
     
@@ -48,9 +51,9 @@ public class ReservationDTO {
         this.userId = userId;
         this.quantity = quantity;
         this.type = type;
-        this.expiresAt = expiresAt;
-        this.createdAt = createdAt;
-        this.isExpired = LocalDateTime.now().isAfter(expiresAt);
+        this.expiresAt = expiresAt.atOffset(ZoneOffset.UTC);
+        this.createdAt = createdAt.atOffset(ZoneOffset.UTC);
+        this.isExpired = OffsetDateTime.now(ZoneOffset.UTC).isAfter(this.expiresAt);
     }
     
     // Getters and Setters
@@ -94,19 +97,19 @@ public class ReservationDTO {
         this.type = type;
     }
     
-    public LocalDateTime getExpiresAt() {
+    public OffsetDateTime getExpiresAt() {
         return expiresAt;
     }
     
-    public void setExpiresAt(LocalDateTime expiresAt) {
+    public void setExpiresAt(OffsetDateTime expiresAt) {
         this.expiresAt = expiresAt;
     }
     
-    public LocalDateTime getCreatedAt() {
+    public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
     
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
     }
     
