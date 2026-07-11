@@ -2,6 +2,22 @@
 
 基於 Spring Cloud 的企業級微服務系統，包含完整的電商業務功能：產品管理、庫存控制、訂單處理、用戶認證等，支援高並發防超賣機制、完整的購物車功能，以及完整的 LGTM 可觀測性堆疊。
 
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
+
 ## 系統架構
 
 ### 核心服務
@@ -72,6 +88,22 @@ OpenTelemetry Collector (:4327 gRPC / :4328 HTTP)
 - **結構化日誌**：含 trace_id/span_id 關聯，可從 log 直接跳轉到對應 trace
 - **預建儀表板**：微服務總覽、服務詳情、分散式追蹤、錯誤監控
 
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
+
 ## 技術棧
 
 ### 後端框架
@@ -112,6 +144,22 @@ OpenTelemetry Collector (:4327 gRPC / :4328 HTTP)
 ### 容器化
 - **Docker**: 容器化部署
 - **Docker Compose**: 多服務編排
+
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
 
 ## 快速開始
 
@@ -200,6 +248,22 @@ docker-compose down
 docker-compose down -v
 ```
 
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
+
 ## Grafana 儀表板使用指南
 
 ### 登入 Grafana
@@ -236,6 +300,22 @@ docker-compose down -v
 2. 查詢服務日誌，例如：`{service="order-service"}`
 3. 點擊含有 `trace_id` 的日誌行
 4. 點擊 **View Trace** 直接跳轉到對應的 Tempo trace
+
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
 
 ## API 文檔與測試
 
@@ -349,6 +429,22 @@ curl -X POST "http://localhost:8080/api/products" \
   }'
 ```
 
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
+
 ## 資料庫架構
 
 系統使用 PostgreSQL 作為主資料庫，每個微服務擁有獨立的資料庫實例：
@@ -379,6 +475,22 @@ curl -X POST "http://localhost:8080/api/products" \
 ### 資料庫初始化
 資料庫和用戶會在 Docker 容器啟動時自動創建，初始化腳本位於 `init-databases.sql`。
 
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
+
 ## 測試
 
 ### 執行測試
@@ -404,6 +516,22 @@ mvn clean package -DskipTests
 - **屬性測試**: 使用 jqwik 進行 Property-Based Testing
 - **整合測試**: 使用 Testcontainers 進行資料庫整合測試
 - **API 測試**: 使用 Spring Boot Test 進行 REST API 測試
+
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
 
 ## 監控與可觀測性
 
@@ -436,6 +564,22 @@ mvn clean package -DskipTests
 - **健康檢查**: http://localhost:13133/health
 - **內部狀態 (zPages)**: http://localhost:55679/debug/tracez
 - **效能分析 (pprof)**: http://localhost:1777/debug/pprof
+
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
 
 ## 開發指南
 
@@ -533,6 +677,22 @@ public class DistributedLockService {
 - 屬性測試驗證業務邏輯
 - API 測試確保介面正確性
 
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
+
 ## 部署指南
 
 ### Docker 部署（生產環境）
@@ -619,6 +779,22 @@ JWT_EXPIRATION=86400000
 OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4327
 OTEL_TRACES_SAMPLER_ARG=0.1  # 生產環境建議降低取樣率
 ```
+
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
 
 ## 故障排除
 
@@ -835,6 +1011,22 @@ sleep 30
 curl -f "http://localhost:8080/actuator/health" && echo "✅ Service is back online"
 ```
 
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
+
 ## 貢獻指南
 
 ### 開發流程
@@ -863,9 +1055,41 @@ test(product): add integration tests
 feat(observability): add LGTM stack integration
 ```
 
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
+
 ## 許可證
 
 本專案採用 MIT 許可證 - 詳見 [LICENSE](LICENSE) 檔案
+
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
 
 ## 聯絡資訊
 
@@ -874,6 +1098,22 @@ feat(observability): add LGTM stack integration
 - **GitHub**: [https://github.com/yourusername/microservices-order-inventory-system]
 
 ---
+
+
+## 前端專案（Frontend）
+
+對應的 Vue 3 前台（私有倉庫）：
+
+- **Repository**: https://github.com/Wudavio/vue3-e
+- **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+
+前後端分工：
+
+| 倉庫 | 職責 |
+|------|------|
+| 本倉庫 | API Gateway / Auth / Product / Inventory / Order / LGTM |
+| [vue3-e](https://github.com/Wudavio/vue3-e) | 瀏覽器 SPA、商品/購物車/訂單/管理介面 |
 
 ## 更新日誌
 
