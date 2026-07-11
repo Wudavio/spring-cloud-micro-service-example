@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +24,6 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/auth")
-@CrossOrigin(origins = "*")
 @Tag(name = "認證管理", description = "用戶認證相關的 API 操作")
 public class AuthController {
     
@@ -87,11 +87,13 @@ public class AuthController {
         @ApiResponse(responseCode = "401", description = "Token 無效或已過期")
     })
     @PostMapping("/validate")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<Void> validateToken(@RequestHeader("Authorization") String authHeader) {
         logger.debug("Token 驗證請求");
         
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException(
+                    "Bearer token is required");
         }
         
         String token = authHeader.substring(7);
@@ -102,7 +104,8 @@ public class AuthController {
             return ResponseEntity.ok().build();
         } else {
             logger.debug("Token 驗證失敗");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException(
+                    "Invalid or expired token");
         }
     }
     
@@ -115,17 +118,20 @@ public class AuthController {
         @ApiResponse(responseCode = "401", description = "Token 無效或已過期")
     })
     @GetMapping("/user-id")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<Long> getUserId(@RequestHeader("Authorization") String authHeader) {
         logger.debug("獲取用戶ID請求");
         
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException(
+                    "Bearer token is required");
         }
         
         String token = authHeader.substring(7);
         
         if (!authService.validateToken(token)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException(
+                    "Invalid or expired token");
         }
         
         Long userId = authService.getUserIdFromToken(token);

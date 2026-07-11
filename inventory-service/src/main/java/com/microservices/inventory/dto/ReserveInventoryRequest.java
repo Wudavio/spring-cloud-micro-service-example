@@ -1,11 +1,11 @@
 package com.microservices.inventory.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 庫存預留請求 DTO
@@ -20,14 +20,14 @@ public class ReserveInventoryRequest {
     @Min(value = 1, message = "預留數量必須大於0")
     private Integer quantity;
     
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime expiresAt;
+    @Schema(type = "string", format = "date-time", example = "2026-07-11T14:30:00+08:00")
+    private OffsetDateTime expiresAt;
     
     // 預設建構子
     public ReserveInventoryRequest() {}
     
     // 建構子
-    public ReserveInventoryRequest(Long userId, Integer quantity, LocalDateTime expiresAt) {
+    public ReserveInventoryRequest(Long userId, Integer quantity, OffsetDateTime expiresAt) {
         this.userId = userId;
         this.quantity = quantity;
         this.expiresAt = expiresAt;
@@ -50,11 +50,11 @@ public class ReserveInventoryRequest {
         this.quantity = quantity;
     }
     
-    public LocalDateTime getExpiresAt() {
+    public OffsetDateTime getExpiresAt() {
         return expiresAt;
     }
     
-    public void setExpiresAt(LocalDateTime expiresAt) {
+    public void setExpiresAt(OffsetDateTime expiresAt) {
         this.expiresAt = expiresAt;
     }
 }

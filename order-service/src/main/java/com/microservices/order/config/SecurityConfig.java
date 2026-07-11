@@ -23,8 +23,8 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/v3/api-docs").permitAll()
                 .requestMatchers("/swagger-resources/**").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
-                .requestMatchers("/api/logging/**").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/info", "/actuator/health/**").permitAll()
+                .requestMatchers("/actuator/**").denyAll()
                 // cart/orders 由 JwtAuthenticationFilter 驗證，Spring Security 放行以利 filter 注入 userId
                 .requestMatchers("/orders/**", "/cart/**").permitAll()
                 .requestMatchers("/api/orders/**", "/api/cart/**").permitAll()

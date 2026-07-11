@@ -11,6 +11,7 @@ import com.microservices.product.exception.DuplicateProductNameException;
 import com.microservices.product.mapper.ProductMapper;
 import com.microservices.product.repository.ProductRepository;
 import com.microservices.product.service.ProductEventPublisher;
+import com.microservices.product.service.ProductImageService;
 import com.microservices.product.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -29,14 +30,17 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final ProductMapper productMapper;
     private final ProductEventPublisher eventPublisher;
+    private final ProductImageService productImageService;
 
     @Autowired
     public ProductServiceImpl(ProductRepository productRepository, 
                              ProductMapper productMapper,
-                             ProductEventPublisher eventPublisher) {
+                             ProductEventPublisher eventPublisher,
+                             ProductImageService productImageService) {
         this.productRepository = productRepository;
         this.productMapper = productMapper;
         this.eventPublisher = eventPublisher;
+        this.productImageService = productImageService;
     }
 
     @Override
@@ -50,7 +54,7 @@ public class ProductServiceImpl implements ProductService {
         product.setStatus(ProductStatus.ACTIVE);
         
         Product savedProduct = productRepository.save(product);
-        ProductDTO result = productMapper.toDTO(savedProduct);
+        ProductDTO result = withImages(productMapper.toDTO(savedProduct));
         
         // Publish product created event
         ProductCreatedEvent event = new ProductCreatedEvent(
@@ -69,42 +73,48 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     public Optional<ProductDTO> getProductById(Long id) {
         return productRepository.findById(id)
-                .map(productMapper::toDTO);
+                .map(productMapper::toDTO)
+                .map(this::withImages);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Optional<ProductDTO> getActiveProductById(Long id) {
         return productRepository.findByIdAndStatus(id, ProductStatus.ACTIVE)
-                .map(productMapper::toDTO);
+                .map(productMapper::toDTO)
+                .map(this::withImages);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<ProductDTO> getAllProducts(Pageable pageable) {
         return productRepository.findAll(pageable)
-                .map(productMapper::toDTO);
+                .map(productMapper::toDTO)
+                .map(this::withImages);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<ProductDTO> getActiveProducts(Pageable pageable) {
         return productRepository.findByStatus(ProductStatus.ACTIVE, pageable)
-                .map(productMapper::toDTO);
+                .map(productMapper::toDTO)
+                .map(this::withImages);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<ProductDTO> getProductsByCategory(String category, Pageable pageable) {
         return productRepository.findByCategoryAndStatus(category, ProductStatus.ACTIVE, pageable)
-                .map(productMapper::toDTO);
+                .map(productMapper::toDTO)
+                .map(this::withImages);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<ProductDTO> searchProducts(String keyword, Pageable pageable) {
         return productRepository.searchByKeywordAndStatus(keyword, ProductStatus.ACTIVE, pageable)
-                .map(productMapper::toDTO);
+                .map(productMapper::toDTO)
+                .map(this::withImages);
     }
 
     @Override
@@ -123,7 +133,7 @@ public class ProductServiceImpl implements ProductService {
 
         productMapper.updateEntityFromRequest(request, product);
         Product updatedProduct = productRepository.save(product);
-        ProductDTO result = productMapper.toDTO(updatedProduct);
+        ProductDTO result = withImages(productMapper.toDTO(updatedProduct));
         
         // Publish product updated event
         ProductUpdatedEvent event = new ProductUpdatedEvent(
@@ -147,7 +157,8 @@ public class ProductServiceImpl implements ProductService {
         
         // TODO: Check for related inventory and orders before deletion
         // This will be implemented when inventory and order services are integrated
-        
+
+        productImageService.deleteAllForProduct(id);
         productRepository.delete(product);
         
         // Publish product deleted event
@@ -161,6 +172,13 @@ public class ProductServiceImpl implements ProductService {
         eventPublisher.publishEvent(event);
     }
 
+    private ProductDTO withImages(ProductDTO dto) {
+        if (dto != null && dto.getId() != null) {
+            dto.setImages(productImageService.listImages(dto.getId()));
+        }
+        return dto;
+    }
+
     @Override
     public void changeProductStatus(Long id, ProductStatus status) {
         Product product = productRepository.findById(id)
@@ -168,8 +186,12 @@ public class ProductServiceImpl implements ProductService {
         
         ProductStatus previousStatus = product.getStatus();
         product.setStatus(status);
-        // Explicitly set updatedAt to ensure version increment
-        product.setUpdatedAt(LocalDateTime.now());
+        LocalDateTime baseline = product.getUpdatedAt();
+        if (product.getCreatedAt() != null && (baseline == null || product.getCreatedAt().isAfter(baseline))) {
+            baseline = product.getCreatedAt();
+        }
+        LocalDateTime now = LocalDateTime.now();
+        product.setUpdatedAt(baseline == null || now.isAfter(baseline) ? now : baseline.plusNanos(1_000));
         Product updatedProduct = productRepository.save(product);
         
         // Publish product status changed event

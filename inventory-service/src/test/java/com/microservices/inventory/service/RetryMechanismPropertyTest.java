@@ -10,6 +10,7 @@ import com.microservices.inventory.service.impl.InventoryServiceImpl;
 import net.jqwik.api.*;
 import net.jqwik.api.lifecycle.BeforeProperty;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -63,6 +64,14 @@ class RetryMechanismPropertyTest {
 
     @Autowired
     private InventoryReservationRepository reservationRepository;
+
+    @Autowired
+    private RestTemplate restTemplate;
+
+    @BeforeEach
+    void resetProductLookup() {
+        when(restTemplate.getForObject(anyString(), eq(Boolean.class))).thenReturn(true);
+    }
 
     @BeforeProperty
     void setUp() {

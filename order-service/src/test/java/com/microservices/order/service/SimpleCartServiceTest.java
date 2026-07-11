@@ -6,6 +6,9 @@ import com.microservices.order.client.ProductServiceClient;
 import com.microservices.order.dto.AddToCartRequest;
 import com.microservices.order.dto.CartDTO;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import com.microservices.order.repository.CartItemRepository;
+import com.microservices.order.repository.CartRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -35,6 +38,18 @@ class SimpleCartServiceTest {
     
     @MockBean
     private InventoryServiceClient inventoryServiceClient;
+
+    @Autowired
+    private CartItemRepository cartItemRepository;
+
+    @Autowired
+    private CartRepository cartRepository;
+
+    @BeforeEach
+    void clearCartState() {
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+    }
     
     @Test
     void testCartServiceIsNotNull() {

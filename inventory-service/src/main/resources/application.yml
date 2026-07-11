@@ -49,6 +49,16 @@ spring:
 server:
   port: 8082
 
+jwt:
+  secret: ${JWT_SECRET}
+
+# DANGER: security.write-guard.enabled=false disables JWT signature checks for inventory
+# mutations (Spring Security permits /inventory/**; only InventoryWriteGuardFilter enforces them).
+# Never set false outside automated tests.
+# security:
+#   write-guard:
+#     enabled: true
+
 # 日誌配置 - 結構化日誌
 logging:
   level:
@@ -77,7 +87,7 @@ eureka:
   instance:
     prefer-ip-address: true
 
-# Actuator 配置
+# Actuator 配置（自製 logging API 已移除；敏感端點不對外）
 management:
   endpoints:
     web:
@@ -85,7 +95,7 @@ management:
         include: health,info,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: when_authorized
 
 # 庫存服務特定配置
 inventory:
@@ -117,4 +127,4 @@ springdoc:
     enabled: true
     operations-sorter: alpha
     tags-sorter: alpha
-  show-actuator: true
+  show-actuator: false

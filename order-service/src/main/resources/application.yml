@@ -77,7 +77,7 @@ eureka:
   instance:
     prefer-ip-address: true
 
-# Actuator 配置
+# Actuator 配置（自製 /api/logging 已移除）
 management:
   endpoints:
     web:
@@ -85,7 +85,7 @@ management:
         include: health,info,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: when_authorized
 
 # Swagger OpenAPI 配置
 springdoc:
@@ -96,4 +96,4 @@ springdoc:
     enabled: true
     operations-sorter: alpha
     tags-sorter: alpha
-  show-actuator: true
+  show-actuator: false

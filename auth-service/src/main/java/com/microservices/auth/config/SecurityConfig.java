@@ -1,10 +1,13 @@
 package com.microservices.auth.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microservices.common.api.ApiErrorResponse;
 import com.microservices.auth.service.impl.CustomUserDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -16,6 +19,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import java.util.Map;
 
 /**
  * Spring Security 配置
@@ -30,6 +35,9 @@ public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Autowired
+    private ObjectMapper objectMapper;
     
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -53,6 +61,23 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(errors -> errors
+                .authenticationEntryPoint((request, response, exception) -> {
+                    response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                    response.setContentType("application/json");
+                    objectMapper.writeValue(response.getWriter(), ApiErrorResponse.of(
+                            HttpStatus.UNAUTHORIZED.value(), "AUTHENTICATION_REQUIRED",
+                            "Authentication is required", request.getRequestURI(),
+                            org.slf4j.MDC.get("traceId"), Map.of()));
+                })
+                .accessDeniedHandler((request, response, exception) -> {
+                    response.setStatus(HttpStatus.FORBIDDEN.value());
+                    response.setContentType("application/json");
+                    objectMapper.writeValue(response.getWriter(), ApiErrorResponse.of(
+                            HttpStatus.FORBIDDEN.value(), "ACCESS_DENIED",
+                            "Access is denied", request.getRequestURI(),
+                            org.slf4j.MDC.get("traceId"), Map.of()));
+                }))
             .authorizeHttpRequests(authz -> authz
                 // 公開認證端點
                 .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login").permitAll()
@@ -62,9 +87,10 @@ public class SecurityConfig {
                 // token 驗證供內部服務呼叫（需持有有效 Bearer，由 controller 自行檢查）
                 .requestMatchers("/auth/validate", "/auth/user-id").permitAll()
                 .requestMatchers("/api/auth/validate", "/api/auth/user-id").permitAll()
-                // Swagger / Actuator
+                // Swagger / Actuator（僅健康檢查公開）
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/info", "/actuator/health/**").permitAll()
+                .requestMatchers("/actuator/**").denyAll()
                 // 用戶管理：需登入（自身或 ADMIN 由 controller 再細分）
                 .requestMatchers("/users/**", "/api/users/**").authenticated()
                 .anyRequest().authenticated()

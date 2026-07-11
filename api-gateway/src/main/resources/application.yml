@@ -1,6 +1,9 @@
 spring:
   application:
     name: api-gateway
+  # 允許經 Gateway 轉發多圖 multipart（單請求可含多張圖）
+  codec:
+    max-in-memory-size: 20MB
   config:
     import: "optional:configserver:http://config-server:8888"
   cloud:
@@ -14,6 +17,23 @@ spring:
         max-interval: 2000
         multiplier: 1.1
     gateway:
+      # Local / bootstrap fallback. Docker (config-server enabled) prefers
+      # config-repo/api-gateway.yml — keep CORS keys in sync when editing either file.
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowed-origins:
+              - ${GATEWAY_CORS_ALLOWED_ORIGIN:http://localhost:5173}
+              - http://localhost:5173
+              - http://127.0.0.1:5173
+              - http://localhost:3000
+              - http://127.0.0.1:3000
+            allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+            allowed-headers: [Authorization, Content-Type, Accept, X-Requested-With]
+            exposed-headers: [X-Request-Id, X-Trace-Id]
+            allow-credentials: true
+            max-age: 3600
       discovery:
         locator:
           enabled: false
@@ -99,7 +119,7 @@ eureka:
   instance:
     prefer-ip-address: true
 
-# Actuator 配置
+# Actuator 配置（對外僅健康／閘道路由診斷；loggers 不在公開面）
 management:
   endpoints:
     web:
@@ -107,7 +127,7 @@ management:
         include: health,info,gateway
   endpoint:
     health:
-      show-details: always
+      show-details: when_authorized
     gateway:
       enabled: true
   tracing:

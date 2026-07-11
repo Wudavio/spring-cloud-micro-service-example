@@ -275,27 +275,36 @@ docker-compose down -v
 - **庫存服務**: http://localhost:8080/v3/api-docs/inventory-service
 - **訂單服務**: http://localhost:8080/v3/api-docs/order-service
 
-#### 直接訪問各服務（開發調試用）
-- **產品服務 API**: http://localhost:8081/swagger-ui.html
-- **庫存服務 API**: http://localhost:8082/swagger-ui.html
-- **訂單服務 API**: http://localhost:8083/swagger-ui.html
-- **認證服務 API**: http://localhost:8084/swagger-ui.html
+#### 直接訪問各服務
+Docker Compose **不對外發布** 8081–8084（僅 `expose` 給內部網路）。正式與整合測試請一律走 Gateway：
+http://localhost:8080/swagger-ui.html
+
+本機單獨啟動服務時，仍可直接連該服務埠做除錯，但不屬於正式外部契約。
 
 ### API 端點總覽
 
 #### 通過 API Gateway (http://localhost:8080)
+- **正式對外 API 前綴**: `/api`（正式環境只公開 API Gateway 的 8080；服務埠不對外發布）
+
 - **認證相關**: `/api/auth/**`
   - `POST /api/auth/register` - 用戶註冊
   - `POST /api/auth/login` - 用戶登入
-  - `POST /api/auth/refresh` - 刷新 Token
-  - `GET /api/auth/profile` - 獲取用戶資料
+  - Token 格式：`Authorization: Bearer <JWT>`；登入回應包含 `expiresIn` 與 `expiresAt`
 
 - **產品管理**: `/api/products/**`
-  - `GET /api/products` - 獲取產品列表（支援分頁）
+  - `GET /api/products` - 獲取產品列表（支援分頁；回應含 `images`）
   - `GET /api/products/{id}` - 根據 ID 獲取產品
   - `POST /api/products` - 創建產品
   - `PUT /api/products/{id}` - 更新產品
-  - `DELETE /api/products/{id}` - 刪除產品
+  - `DELETE /api/products/{id}` - 刪除產品（含圖片檔案）
+  - **產品圖片（每產品最多 10 張，本機目錄 v1）**
+    - `POST /api/products/{id}/images` - 多圖上傳（`multipart/form-data`，欄位名 `files`，需 ADMIN）
+    - `GET /api/products/{id}/images` - 列出圖片中繼資料
+    - `GET /api/products/{id}/images/{imageId}` - 單張中繼資料
+    - `GET /api/products/{id}/images/{imageId}/content` - 下載／預覽圖片
+    - `DELETE /api/products/{id}/images/{imageId}` - 刪除單張（需 ADMIN）
+    - 允許格式：JPEG / PNG / WebP / GIF；單檔預設 ≤ 5MB
+    - 儲存：本機 `product-service/uploads/products/{productId}/`；Docker 使用 volume `product_uploads` → `/app/uploads/products`（環境變數 `PRODUCT_IMAGE_UPLOAD_DIR`）
 
 - **庫存管理**: `/api/inventory/**`
   - `GET /api/inventory/{productId}` - 獲取產品庫存
@@ -317,6 +326,49 @@ docker-compose down -v
   - `PUT /api/orders/{orderId}/cancel` - 取消訂單
   - `PUT /api/orders/{orderId}/status` - 更新訂單狀態
 
+### 權限矩陣
+
+| 功能 | CUSTOMER | OPERATOR | ADMIN |
+|------|----------|----------|-------|
+| 產品與庫存查詢 | ✓ | ✓ | ✓ |
+| 購物車、建立／查詢／取消自己的訂單 | ✓ | ✓ | ✓ |
+| 更新訂單處理／出貨狀態 | — | ✓ | ✓ |
+| 產品新增、修改、刪除 | — | — | ✓ |
+| 產品圖片上傳／刪除 | — | — | ✓ |
+| 庫存調整、清理過期預留 | — | — | ✓ |
+| 使用者管理與角色調整 | — | — | ✓ |
+
+Product 與 Inventory 會自行驗證 JWT 簽章及期限；訂單狀態更新限 OPERATOR／ADMIN。
+所有服務必須使用同一個 `JWT_SECRET`（至少 32 bytes）。Docker Compose 啟動前請
+由 `.env.example` 建立本機 `.env`。Gateway 集中 CORS（`GATEWAY_CORS_ALLOWED_ORIGIN`），
+業務服務不再使用 `@CrossOrigin("*")`。
+
+#### 統一錯誤回應
+```json
+{
+  "timestamp": "2026-07-11T06:30:00Z",
+  "status": 400,
+  "code": "VALIDATION_ERROR",
+  "message": "Request validation failed",
+  "path": "/api/products",
+  "traceId": null,
+  "details": { "name": "must not be blank" }
+}
+```
+
+#### 分頁回應
+```json
+{
+  "content": [],
+  "page": 0,
+  "size": 20,
+  "totalElements": 0,
+  "totalPages": 0,
+  "first": true,
+  "last": true
+}
+```
+
 ### 使用 Swagger UI 測試 API
 
 1. **訪問 Swagger UI**: http://localhost:8080/swagger-ui/index.html
@@ -326,7 +378,18 @@ docker-compose down -v
    - 點擊頁面右上角 "Authorize" 按鈕
    - 輸入 `Bearer {your-jwt-token}` 進行認證
 3. **測試業務流程**:
-   - 創建產品 → 設置庫存 → 添加到購物車 → 創建訂單
+   - 創建產品 → 上傳產品圖片（可選）→ 設置庫存 → 添加到購物車 → 創建訂單
+
+#### 產品多圖上傳範例（ADMIN）
+```bash
+# 先登入取得 ADMIN token，再：
+curl -X POST "http://localhost:8080/api/products/1/images" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "files=@./photo1.jpg" \
+  -F "files=@./photo2.png"
+```
+
+Docker 下圖片持久化於 named volume `product_uploads`；本機直接跑 jar 時寫入 `product-service/uploads/products/`（已 gitignore）。
 
 ### API 測試範例
 

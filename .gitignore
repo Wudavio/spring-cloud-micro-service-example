@@ -50,6 +50,10 @@ Thumbs.db
 logs/
 */logs/
 
+# Local product image uploads (v1 filesystem storage)
+product-service/uploads/
+uploads/
+
 # Local test/debug env files (keep otel-agent service env files)
 broken-config.env
 test-config*.env

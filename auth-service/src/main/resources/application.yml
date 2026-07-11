@@ -47,7 +47,7 @@ eureka:
 
 # JWT 配置
 jwt:
-  secret: ${JWT_SECRET:myVerySecretKeyForJWTTokenGeneration123456789}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400000} # 24小時
 
 # Logging 配置 - 結構化日誌
@@ -68,7 +68,7 @@ logging:
       max-history: 30
       total-size-cap: 1GB
 
-# Management endpoints
+# Management endpoints（敏感 loggers 不公開；僅 health/info/metrics）
 management:
   endpoints:
     web:
@@ -76,4 +76,4 @@ management:
         include: health,info,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: when_authorized

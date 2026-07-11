@@ -8,7 +8,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Spring Security 配置 - 允許 Swagger 端點公開訪問
+ * Spring Security 配置。
+ * 業務寫入由 {@link InventoryWriteGuardFilter} 驗證 JWT；此處限制 Actuator 暴露面。
  */
 @Configuration
 @EnableWebSecurity
@@ -19,16 +20,14 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                // 允許 Swagger UI 和 API 文檔
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/v3/api-docs").permitAll()
                 .requestMatchers("/swagger-resources/**").permitAll()
-                // 允許 Actuator 健康檢查
-                .requestMatchers("/actuator/**").permitAll()
-                // 允許庫存服務的 API 端點（注意：Gateway 會 strip 掉 /api 前綴）
+                .requestMatchers("/actuator/health", "/actuator/info", "/actuator/health/**").permitAll()
+                .requestMatchers("/actuator/**").denyAll()
+                // 業務 API 由 InventoryWriteGuardFilter 補強；Spring Security 放行以利 filter 處理
                 .requestMatchers("/inventory/**").permitAll()
-                .requestMatchers("/api/inventory/**").permitAll() // 保留原有配置以防直接訪問
-                // 其他請求需要認證
+                .requestMatchers("/api/inventory/**").permitAll()
                 .anyRequest().authenticated()
             );
         

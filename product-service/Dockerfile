@@ -4,6 +4,9 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
+# 產品圖片本機儲存目錄（由 docker-compose volume 掛載 product_uploads）
+RUN mkdir -p /app/uploads/products
+
 # 複製應用程式 JAR 檔案
 COPY target/*.jar app.jar
 
