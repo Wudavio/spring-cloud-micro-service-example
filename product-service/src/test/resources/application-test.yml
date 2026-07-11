@@ -29,6 +29,12 @@ spring:
 jwt:
   secret: testSecretKeyForJwtSigningThatIsAtLeast32BytesLong
 
+product:
+  images:
+    upload-dir: ${java.io.tmpdir}/product-service-test-uploads
+    max-count: 10
+    max-file-size-bytes: 5242880
+
 eureka:
   client:
     enabled: false

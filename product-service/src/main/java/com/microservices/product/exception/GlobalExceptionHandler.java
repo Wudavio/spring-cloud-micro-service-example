@@ -36,4 +36,16 @@ public class GlobalExceptionHandler extends BaseApiExceptionHandler {
     ResponseEntity<ApiErrorResponse> invalidRequest(IllegalArgumentException ex, HttpServletRequest request) {
         return error(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", ex.getMessage(), request, Map.of());
     }
+
+    @ExceptionHandler(IllegalStateException.class)
+    ResponseEntity<ApiErrorResponse> illegalState(IllegalStateException ex, HttpServletRequest request) {
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "IMAGE_STORAGE_ERROR",
+                ex.getMessage() == null ? "Image storage failed" : ex.getMessage(), request, Map.of());
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiErrorResponse> tooLarge(Exception ex, HttpServletRequest request) {
+        return error(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE",
+                "Uploaded file or request exceeds configured size limit", request, Map.of());
+    }
 }

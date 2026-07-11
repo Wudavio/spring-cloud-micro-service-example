@@ -296,11 +296,15 @@ services:
     container_name: product-service
     expose:
       - "8081"
+    volumes:
+      # 產品圖片本機儲存 v1（跨重啟保留）
+      - product_uploads:/app/uploads/products
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/product_db
       - SPRING_DATASOURCE_USERNAME=product_user
       - SPRING_DATASOURCE_PASSWORD=product_pass
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env}
+      - PRODUCT_IMAGE_UPLOAD_DIR=/app/uploads/products
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - eureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/
@@ -517,6 +521,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  product_uploads:
   # LGTM 堆疊資料卷
   mimir_data:
   tempo_data:

@@ -27,9 +27,26 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 55MB
+      enabled: true
 
 server:
   port: 8081
+
+# 產品圖片：本機目錄儲存（相對 product-service 工作目錄）
+product:
+  images:
+    upload-dir: ${PRODUCT_IMAGE_UPLOAD_DIR:uploads/products}
+    max-count: 10
+    max-file-size-bytes: 5242880
+    allowed-content-types:
+      - image/jpeg
+      - image/png
+      - image/webp
+      - image/gif
 
 jwt:
   secret: ${JWT_SECRET}

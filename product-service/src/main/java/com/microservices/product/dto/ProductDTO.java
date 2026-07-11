@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Schema(description = "產品資訊")
 public class ProductDTO {
@@ -34,6 +36,9 @@ public class ProductDTO {
     
     @Schema(description = "更新時間")
     private LocalDateTime updatedAt;
+
+    @Schema(description = "產品圖片（最多 10 張）")
+    private List<ProductImageDTO> images = new ArrayList<>();
 
     // Default constructor
     public ProductDTO() {}
@@ -124,5 +129,13 @@ public class ProductDTO {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public List<ProductImageDTO> getImages() {
+        return images;
+    }
+
+    public void setImages(List<ProductImageDTO> images) {
+        this.images = images == null ? new ArrayList<>() : images;
     }
 }

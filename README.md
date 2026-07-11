@@ -277,11 +277,19 @@ http://localhost:8080/swagger-ui.html
   - Token 格式：`Authorization: Bearer <JWT>`；登入回應包含 `expiresIn` 與 `expiresAt`
 
 - **產品管理**: `/api/products/**`
-  - `GET /api/products` - 獲取產品列表（支援分頁）
+  - `GET /api/products` - 獲取產品列表（支援分頁；回應含 `images`）
   - `GET /api/products/{id}` - 根據 ID 獲取產品
   - `POST /api/products` - 創建產品
   - `PUT /api/products/{id}` - 更新產品
-  - `DELETE /api/products/{id}` - 刪除產品
+  - `DELETE /api/products/{id}` - 刪除產品（含圖片檔案）
+  - **產品圖片（每產品最多 10 張，本機目錄 v1）**
+    - `POST /api/products/{id}/images` - 多圖上傳（`multipart/form-data`，欄位名 `files`，需 ADMIN）
+    - `GET /api/products/{id}/images` - 列出圖片中繼資料
+    - `GET /api/products/{id}/images/{imageId}` - 單張中繼資料
+    - `GET /api/products/{id}/images/{imageId}/content` - 下載／預覽圖片
+    - `DELETE /api/products/{id}/images/{imageId}` - 刪除單張（需 ADMIN）
+    - 允許格式：JPEG / PNG / WebP / GIF；單檔預設 ≤ 5MB
+    - 儲存：本機 `product-service/uploads/products/{productId}/`；Docker 使用 volume `product_uploads` → `/app/uploads/products`（環境變數 `PRODUCT_IMAGE_UPLOAD_DIR`）
 
 - **庫存管理**: `/api/inventory/**`
   - `GET /api/inventory/{productId}` - 獲取產品庫存
@@ -311,6 +319,7 @@ http://localhost:8080/swagger-ui.html
 | 購物車、建立／查詢／取消自己的訂單 | ✓ | ✓ | ✓ |
 | 更新訂單處理／出貨狀態 | — | ✓ | ✓ |
 | 產品新增、修改、刪除 | — | — | ✓ |
+| 產品圖片上傳／刪除 | — | — | ✓ |
 | 庫存調整、清理過期預留 | — | — | ✓ |
 | 使用者管理與角色調整 | — | — | ✓ |
 
@@ -354,7 +363,18 @@ Product 與 Inventory 會自行驗證 JWT 簽章及期限；訂單狀態更新�
    - 點擊頁面右上角 "Authorize" 按鈕
    - 輸入 `Bearer {your-jwt-token}` 進行認證
 3. **測試業務流程**:
-   - 創建產品 → 設置庫存 → 添加到購物車 → 創建訂單
+   - 創建產品 → 上傳產品圖片（可選）→ 設置庫存 → 添加到購物車 → 創建訂單
+
+#### 產品多圖上傳範例（ADMIN）
+```bash
+# 先登入取得 ADMIN token，再：
+curl -X POST "http://localhost:8080/api/products/1/images" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "files=@./photo1.jpg" \
+  -F "files=@./photo2.png"
+```
+
+Docker 下圖片持久化於 named volume `product_uploads`；本機直接跑 jar 時寫入 `product-service/uploads/products/`（已 gitignore）。
 
 ### API 測試範例
 

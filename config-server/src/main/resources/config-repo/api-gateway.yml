@@ -2,6 +2,8 @@ server:
   port: 8080
 
 spring:
+  codec:
+    max-in-memory-size: 20MB
   cloud:
     gateway:
       globalcors:
@@ -9,7 +11,11 @@ spring:
         cors-configurations:
           '[/**]':
             allowed-origins:
-              - ${GATEWAY_CORS_ALLOWED_ORIGIN:http://localhost:3000}
+              - ${GATEWAY_CORS_ALLOWED_ORIGIN:http://localhost:5173}
+              - http://localhost:5173
+              - http://127.0.0.1:5173
+              - http://localhost:3000
+              - http://127.0.0.1:3000
             allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
             allowed-headers: [Authorization, Content-Type, Accept, X-Requested-With]
             exposed-headers: [X-Request-Id, X-Trace-Id]
