@@ -9,7 +9,7 @@
 
 - **Repository**: https://github.com/Wudavio/vue3-e
 - **技術**: Vue 3 · TypeScript · Vite · Pinia · Storefront UI · TanStack Query
-- **本機**: \pnpm dev\ → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
+- **本機**: `pnpm dev` → http://localhost:5173（proxy 至本倉庫 API Gateway :8080）
 
 | 倉庫 | 職責 |
 |------|------|
